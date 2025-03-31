@@ -5,7 +5,7 @@
     <!-- .pcd file name-->
     <param name="file_name" value= "map" />
     <!-- minimum height-->
-    <param name="thre_z_min" value= "-2.0" />
+    <param name="thre_z_min" value= "-1.0" />
     <!-- maximum height-->
     <param name="thre_z_max" value= "0.7" />
     <!--0 select points in height range, １ select points out of height range -->
