@@ -1,5 +1,0 @@
-jackal_description
-/home/koala/ME5413_Final_Project_Group12/devel/.private/jackal_description/cmake.lock /home/koala/ME5413_Final_Project_Group12/devel/./cmake.lock
-/home/koala/ME5413_Final_Project_Group12/devel/.private/jackal_description/share/jackal_description/cmake/jackal_descriptionConfig.cmake /home/koala/ME5413_Final_Project_Group12/devel/share/jackal_description/cmake/jackal_descriptionConfig.cmake
-/home/koala/ME5413_Final_Project_Group12/devel/.private/jackal_description/share/jackal_description/cmake/jackal_descriptionConfig-version.cmake /home/koala/ME5413_Final_Project_Group12/devel/share/jackal_description/cmake/jackal_descriptionConfig-version.cmake
-/home/koala/ME5413_Final_Project_Group12/devel/.private/jackal_description/lib/pkgconfig/jackal_description.pc /home/koala/ME5413_Final_Project_Group12/devel/lib/pkgconfig/jackal_description.pc
