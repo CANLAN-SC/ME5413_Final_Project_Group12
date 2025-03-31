@@ -1,7 +1,7 @@
 <launch>
     <node pkg="pcd_to_map" name="pcd_to_map" type="pcd_to_map" output="screen">
     <!-- filepath to save .pcd file -->
-    <param name="file_directory" value= "/home/koala/ME5413_Final_Project_Group12/final_pcd/mapping_1/" />
+    <param name="file_directory" value= "/home/koala/ME5413_Final_Project_Group12/src/FAST_LIO/PCD/" />
     <!-- .pcd file name-->
     <param name="file_name" value= "map" />
     <!-- minimum height-->

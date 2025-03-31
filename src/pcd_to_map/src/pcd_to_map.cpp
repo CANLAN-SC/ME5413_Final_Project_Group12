@@ -125,7 +125,7 @@ void PassThroughFilter(const double &thre_low, const double &thre_high,
   // set operation in y axis
   passthrough_y.setFilterFieldName("y");
   // set height range
-  passthrough_y.setFilterLimits(-18, 10);
+  passthrough_y.setFilterLimits(-27, 17);
   // true : keep points out of range / false : keep points in the range
   passthrough_y.setFilterLimitsNegative(false);
   // do filtering and save
@@ -138,7 +138,7 @@ void PassThroughFilter(const double &thre_low, const double &thre_high,
   // set operation in x axis
   passthrough_x.setFilterFieldName("x");
   // set height range
-  passthrough_x.setFilterLimits(-10, 20);
+  passthrough_x.setFilterLimits(-12, 27);
   // true : keep points out of range / false : keep points in the range
   passthrough_x.setFilterLimitsNegative(false);
   // do filtering and save
