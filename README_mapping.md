@@ -19,7 +19,12 @@ in the third terminal:
 # roslaunch pcd_to_map pcd_to_map.launch
 ```
 
-# Save the map as `my_map` .
+notice: you need to modified the value by your own path
+```
+<param name="file_directory" value="/home/wu/ME5413/homework/final_project/ME5413_Final_Project_Group12/src/FAST_LIO/PCD/" />
+```
+
+# Save the map as `my_map` .You can see the .png in the `my map` folder
 ```bash
 # rosrun map_server map_saver -f my_map
 ```
