@@ -6,7 +6,7 @@ import sys
 
 def publish_goal(x, y, yaw):
     goal = PoseStamped()
-    goal.header.frame_id = "odom"  # 根据你的 TF 坐标系，如 "map" 或 "odom"
+    goal.header.frame_id = "map"  # 根据你的 TF 坐标系，如 "map" 或 "odom"
     goal.header.stamp = rospy.Time.now()
 
     goal.pose.position.x = x

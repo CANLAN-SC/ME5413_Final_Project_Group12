@@ -1,7 +1,11 @@
 <launch>
 
   <!-- Connect the robot to a keyboard teleop controller -->
+  <!--
   <node name="teleop_twist_keyboard" pkg="teleop_twist_keyboard" type="teleop_twist_keyboard.py" output="screen" respawn="true"/>
+  -->
+  <!-- world.launch-->
+  <include file="$(find me5413_world)/launch/world.launch" />
 
   <!-- Run the map server -->
   <arg name="map_file" default="$(find me5413_world)/maps/my_map.yaml"/>
@@ -11,7 +15,8 @@
   <include file="$(find jackal_navigation)/launch/include/amcl.launch" />
 
   <!-- Launch Move Base -->
-  <include file="$(find jackal_navigation)/launch/include/move_base.launch" />
+  <!--<include file="$(find jackal_navigation)/launch/include/move_base.launch" />-->
+  <include file="$(find me5413_world)/launch/move_base.launch" />
 
   <!-- Launch Rviz with our settings -->
   <node type="rviz" name="rviz" pkg="rviz" args="-d $(find me5413_world)/rviz/navigation.rviz" output="log" respawn="true"/>
