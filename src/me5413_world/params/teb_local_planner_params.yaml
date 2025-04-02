@@ -1,6 +1,6 @@
 TebLocalPlannerROS:
 
-  odom_topic: odometry/filtered
+  odom_topic: gazebo/ground_truth/state
   map_frame: map
 
   # Robot Configuration Parameters

@@ -10,7 +10,7 @@ global_costmap:
    origin_y: -50.0
    static_map: true
    rolling_window: false
-   track_unknown_space: true
+   track_unknown_space: true  # 允许未知区域
 
    plugins:
    - {name: static_layer, type: "costmap_2d::StaticLayer"}
@@ -18,8 +18,6 @@ global_costmap:
    - {name: inflater_layer, type: "costmap_2d::InflationLayer"}
 
    
-   obstacles_layer:
-    track_unknown_space: true
     
 
   

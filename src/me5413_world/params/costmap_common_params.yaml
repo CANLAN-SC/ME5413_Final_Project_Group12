@@ -3,19 +3,13 @@ origin_z: 0.0
 z_resolution: 1
 z_voxels: 2
 
-obstacle_range: 4
-raytrace_range: 5
 
-publish_voxel_map: false
 transform_tolerance: 0.5
 meter_scoring: true
 
 footprint: [[-0.21, -0.165], [-0.21, 0.165], [0.21, 0.165], [0.21, -0.165]]
 footprint_padding: 0.1
 
-plugins:
-- {name: obstacles_layer, type: "costmap_2d::ObstacleLayer"}
-- {name: inflater_layer, type: "costmap_2d::InflationLayer"}
 
 # obstacles_layer:
 #   observation_sources: scan
@@ -31,6 +25,11 @@ plugins:
 #     raytrace_range: 3.0}
 
 obstacles_layer:
+
+  enabled:              true #使能障碍层
+  obstacle_range: 4
+  raytrace_range: 5
+  publish_voxel_map: false
   observation_sources: scan lidar
 
   scan:
@@ -50,4 +49,11 @@ obstacles_layer:
     
 
 inflater_layer:
- inflation_radius: 0.30
+  enabled:              true #使能膨胀层
+  cost_scaling_factor:  5  # exponential rate at which the obstacle cost drops off 障碍成本下降的指数速度(default: 10)
+  inflation_radius:     0.3  # 机器人膨胀半径，比如设置为0.3,意味着规划的路径距离0.3米以上，这个参数理论上越大越安全
+  #但是会导致无法穿过狭窄的地方0.15
+
+static_layer:
+  enabled:              true
+  map_topic:            "/map"

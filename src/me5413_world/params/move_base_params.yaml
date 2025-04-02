@@ -11,3 +11,6 @@ oscillation_distance: 0.5
 
 recovery_behavior_enabled: true
 clearing_rotation_allowed: true
+
+base_global_planner: "global_planner/GlobalPlanner"
+base_local_planner: "teb_local_planner/TebLocalPlannerROS"
