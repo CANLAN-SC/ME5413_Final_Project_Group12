@@ -3,6 +3,10 @@ summary: you can get the ply file at the following path:
 ```
 ME5413_Final_Project_Group12/src/me5413_world/scripts/carto_points.ply
 ```
+NOTICE: carto.bag and carto_points.ply have been deleted since they are are too big
+
+
+---
 ## 1. Record the Data
 To start, record the data package for your robot using the following commands:
 
