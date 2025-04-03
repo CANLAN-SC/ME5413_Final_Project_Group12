@@ -9,14 +9,14 @@
     <param name="odom_model_type" value="diff"/>
     <param name="odom_alpha5" value="0.1"/>
     <param name="gui_publish_rate" value="20.0"/>
-    <param name="laser_max_beams" value="1000"/>
+    <param name="laser_max_beams" value="5000"/>
     <param name="laser_min_range" value="-1.0"/>
     <param name="laser_max_range" value="-1.0"/>
-    <param name="min_particles" value="100"/>
-    <param name="max_particles" value="500"/>
+    <param name="min_particles" value="10000"/>
+    <param name="max_particles" value="80000"/>
     <!-- Maximum error between the true distribution and the estimated distribution. -->
-    <param name="kld_err" value="100"/>
-    <param name="kld_z" value="0.15"/>
+    <param name="kld_err" value="1.5"/>
+    <param name="kld_z" value="0.5"/>
     <param name="odom_alpha1" value="0.1"/>
     <param name="odom_alpha2" value="0.1"/>
     <!-- translation std dev, m -->
