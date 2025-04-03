@@ -15,7 +15,7 @@
     <param name="min_particles" value="10000"/>
     <param name="max_particles" value="50000"/>
     <!-- Maximum error between the true distribution and the estimated distribution. -->
-    <param name="kld_err" value="1.5"/>
+    <param name="kld_err" value="0.15"/>
     <param name="kld_z" value="0.2"/>
     <param name="odom_alpha1" value="0.2"/>
     <param name="odom_alpha2" value="0.2"/>
@@ -46,7 +46,7 @@
     <!-- Exponential decay rate for the slow average weight filter, used in deciding when to recover by adding random poses. A good value might be 0.001. -->
     <param name="recovery_alpha_slow" value="0.0001"/>
     <!--Exponential decay rate for the fast average weight filter, used in deciding when to recover by adding random poses. A good value might be 0.1. -->
-    <param name="recovery_alpha_fast" value="0.1"/>
+    <param name="recovery_alpha_fast" value="0.0005"/>
     <!-- <param name = "tf_broadcast" value="true"/> -->
     <param name = "save_pose_rate" value="1"/>
      <param name = "tf_broadcast" value="true"/>
