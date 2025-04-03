@@ -16,7 +16,7 @@
     <param name="max_particles" value="500"/>
     <!-- Maximum error between the true distribution and the estimated distribution. -->
     <param name="kld_err" value="100"/>
-    <param name="kld_z" value="0.2"/>
+    <param name="kld_z" value="0.15"/>
     <param name="odom_alpha1" value="0.1"/>
     <param name="odom_alpha2" value="0.1"/>
     <!-- translation std dev, m -->
@@ -31,7 +31,7 @@
     <param name="laser_model_type" value="likelihood_field"/>
 
     <!-- Maximum distance to do obstacle inflation on map, for use in likelihood_field model. -->
-    <param name="laser_likelihood_max_dist" value="2.0"/>
+    <param name="laser_likelihood_max_dist" value="1.0"/>
     <!-- Translational movement required before performing a filter update.  -->
     <param name="update_min_d" value="0.2"/>
     <!--Rotational movement required before performing a filter update. -->
