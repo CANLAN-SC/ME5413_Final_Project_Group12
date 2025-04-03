@@ -12,7 +12,7 @@
   <node name="map_server" pkg="map_server" type="map_server" args="$(arg map_file)" />
   
   <!-- Launch the AMCL Localizer -->
-  <include file="$(find jackal_navigation)/launch/include/amcl.launch" />
+  <include file="$(find me5413_world)/launch/amcl.launch" />
 
   <!-- Launch Move Base -->
   <!--<include file="$(find jackal_navigation)/launch/include/move_base.launch" />-->
