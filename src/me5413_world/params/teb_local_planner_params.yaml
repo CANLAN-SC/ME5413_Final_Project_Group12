@@ -4,11 +4,11 @@ TebLocalPlannerROS:
   map_frame: map
 
   # Robot Configuration Parameters
-  max_vel_x: 2.0
-  max_vel_x_backwards: 1.0
-  max_vel_theta: 1.2
-  acc_lim_x: 2.0
-  acc_lim_theta: 1.2
+  max_vel_x: 1.0
+  max_vel_x_backwards: 0.3
+  max_vel_theta: 0.8
+  acc_lim_x: 1.0
+  acc_lim_theta: 0.8
   min_turning_radius: 0.0  # Jackal是差速驱动，可以原地转
 
   # Robot footprint/collision model

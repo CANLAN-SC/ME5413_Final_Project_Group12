@@ -27,7 +27,7 @@ footprint_padding: 0.1
 obstacles_layer:
 
   enabled:              true #使能障碍层
-  obstacle_range: 4
+  obstacle_range: 5
   raytrace_range: 5
   publish_voxel_map: false
   observation_sources: scan lidar
