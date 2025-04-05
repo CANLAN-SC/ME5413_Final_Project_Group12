@@ -1,0 +1,40 @@
+
+<launch>
+  <!-- 加载 TEB 的参数，注意放在 base_local_planner 命名空间 -->
+  <rosparam file="$(find me5413_world)/params/teb_local_planner_params.yaml" command="load" ns="move_base"/>
+
+  <!-- move_base 公共参数 -->
+  <rosparam file="$(find me5413_world)/params/move_base_params.yaml" command="load" ns="move_base"/>
+
+  <!-- 启动 move_base 节点 -->
+  <node pkg="move_base" type="move_base" name="move_base" output="screen">
+
+    <!-- global 和 local costmap 的共用参数 -->
+    <rosparam file="$(find me5413_world)/params/costmap_common_params.yaml" command="load" ns="global_costmap" />
+    <rosparam file="$(find me5413_world)/params/costmap_common_params.yaml" command="load" ns="local_costmap" />
+
+    <!-- 各自的局部和全局 costmap 配置 -->
+    <rosparam file="$(find me5413_world)/params/map_nav_params/global_costmap_params.yaml" command="load" ns="global_costmap" />
+    <rosparam file="$(find me5413_world)/params/map_nav_params/local_costmap_params.yaml" command="load" ns="local_costmap" />
+
+    <!-- 指定 planner -->
+    <param name="base_global_planner" value="navfn/NavfnROS" />
+    <param name="base_local_planner" value="teb_local_planner/TebLocalPlannerROS" />
+  </node>
+</launch>
+
+<launch>
+  <!-- navigation common params-->
+  <rosparam file="$(find me5413_world)/params/map_nav_params/local_costmap_params.yaml"      command="load" ns="move_base"/>
+  <rosparam file="$(find me5413_world)/params/map_nav_params/global_costmap_params.yaml"     command="load" ns="move_base"/>
+  <rosparam file="$(find me5413_world)/params/move_base_params.yaml"          command="load" ns="move_base"/>
+  <rosparam file="$(find me5413_world)/params/base_global_planner_param.yaml" command="load" ns="move_base"/>
+  <rosparam file="$(find me5413_world)/params/teb_local_planner_params.yaml"  command="load" ns="move_base"/>
+  
+  <param name="move_base/base_local_planner"    type="string" value="teb_local_planner/TebLocalPlannerROS"/>
+  <node pkg="move_base" type="move_base" respawn="false" name="move_base" output="screen">
+    <rosparam file="$(find me5413_world)/params/costmap_common_params.yaml" command="load" ns="global_costmap" />
+    <rosparam file="$(find me5413_world)/params/costmap_common_params.yaml" command="load" ns="local_costmap" />
+  </node>
+</launch>
+
