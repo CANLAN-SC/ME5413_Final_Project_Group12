@@ -26,7 +26,7 @@ class RedConeDetector:
         self.latest_image = None
         self.latest_pointcloud = None
 
-        rospy.loginfo("🔴 Red cone detector node started.")
+        rospy.loginfo("Red cone detector node started.")
 
     def image_callback(self, msg):
         try:
@@ -83,7 +83,7 @@ class RedConeDetector:
 
         try:
             pt_out = self.tf_buffer.transform(pt, "map", rospy.Duration(1.0))
-            rospy.loginfo(f"✅ Red cone in map: ({pt_out.point.x:.2f}, {pt_out.point.y:.2f}, {pt_out.point.z:.2f})")
+            rospy.loginfo(f"Red cone in map: ({pt_out.point.x:.2f}, {pt_out.point.y:.2f}, {pt_out.point.z:.2f})")
             self.point_pub.publish(pt_out)
         except Exception as e:
             rospy.logwarn(f"TF transform failed: {e}")
