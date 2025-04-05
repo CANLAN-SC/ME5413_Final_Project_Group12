@@ -7,11 +7,9 @@ from std_msgs.msg import Bool
 from geometry_msgs.msg import PoseStamped, PoseArray
 import actionlib
 from move_base_msgs.msg import MoveBaseAction, MoveBaseGoal
-import roslaunch
 from nav_msgs.msg import OccupancyGrid
-from map_msgs.msg import OccupancyGridUpdate
 from visualization_msgs.msg import MarkerArray, Marker
-from geometry_msgs.msg import Twist, Point
+from geometry_msgs.msg import Point
 import math
 from std_msgs.msg import Int32, ColorRGBA
 
@@ -52,7 +50,7 @@ class Config:
     # 超时设置(秒)
     TIMEOUTS = {
         'INIT': 60.0,                # 初始化超时
-        'EXPLORE': 300.0,            # 探索任务超时
+        'EXPLORE': 30.0,            # 探索任务超时
         'BOX_DETECTION': 3.0,       # 盒子检测超时
         'BRIDGE_DETECTION': 15.0,    # 桥梁检测超时
         'NAVIGATION': 60.0,          # 导航超时
@@ -118,7 +116,7 @@ class Config:
     ]
 
     # 最佳观察距离
-    VIEWING_DISTANCE = 1.0
+    VIEWING_DISTANCE = 2.0
 
     # 观察角度
     VIEWING_ANGLES = [0, math.pi/2, math.pi, 3*math.pi/2]  # 0°, 90°, 180°, 270°
@@ -128,10 +126,12 @@ class Config:
 
     # 聚类参数
     CLUSTERING = {
-        'width': 30,
-        'height': 30,
-        'MIN_POINTS': 20,  # 最小点数
+        'width': 35,
+        'height': 35,
+        'MIN_POINTS': 15,  # 最小点数
         'MAX_POINTS': 200,  # 最大点数
+        'MIN_SAMPLES': 5,  # 最小样本大小
+        'EPS': 5,  # DBSCAN的eps参数, 较小的 eps 会创建更多、更小的聚类
     }
 
 # 定义状态：初始化
@@ -141,89 +141,12 @@ class Initialize(smach.State):
         self.timeout = Config.TIMEOUTS['INIT']
 
     def execute(self, userdata):
-        # try:
-        #     # 使用直接速度控制快速通过第一路段
-        #     if hasattr(Config, 'DIRECT_CONTROL') and Config.DIRECT_CONTROL.get('ENABLED', False):
-        #         if self.fast_navigate_first_segment():
-        #             rospy.loginfo('通过直接控制快速到达探索区域')
-        #             return 'initialized'
-        #         else:
-        #             rospy.logwarn('直接控制导航失败，使用move_base作为备选方案')
-            
-        #     # 如果直接控制被禁用或失败，使用move_base导航
-        #     # move_base依次前往探索区域的四个点
-        #     for i, point in enumerate(Config.EXPLORE_POINTS):
-        #         x, y, w, z = point
-        #         rospy.loginfo('[%d/%d] 初始化导航到探索区域点: x=%.2f, y=%.2f', 
-        #                     i+1, len(Config.EXPLORE_POINTS), x, y)
-                
-        #         # 创建目标位置
-        #         goal = MoveBaseGoal()
-        #         goal.target_pose.header.frame_id = "map"
-        #         goal.target_pose.header.stamp = rospy.Time.now()
-        #         goal.target_pose.pose.position.x = x
-        #         goal.target_pose.pose.position.y = y
-        #         goal.target_pose.pose.orientation.w = w
-        #         goal.target_pose.pose.orientation.z = z
-                
-        #         # 发送目标位置
-        #         self.move_base_client.send_goal(goal)
-                
-        #         # 检查导航超时
-        #         if not self.move_base_client.wait_for_result(rospy.Duration(self.timeout)):
-        #             rospy.logerr('导航到目标位置超时，取消目标')
-        #             self.move_base_client.cancel_goal()
-        #             return 'failed'
-                
-        #         # 检查导航结果
-        #         result_state = self.move_base_client.get_state()
-        #         if result_state != actionlib.GoalStatus.SUCCEEDED:
-        #             rospy.logerr('导航到目标位置失败，状态码: %d', result_state)
-        #             return 'failed'
-                    
-        #         rospy.loginfo('成功到达探索区域点 [%d/%d]', i+1, len(Config.EXPLORE_POINTS))
-                
-        #     rospy.loginfo('初始化完成：所有探索区域点导航成功')
-        #     return 'initialized'
-        # except Exception as e:
-        #     rospy.logerr('初始化过程出错: %s', str(e))
-        #     return 'failed'
         return 'initialized'
 
 # 定义状态：前沿探索任务
 class ExploreFrontier(smach.State):
     def __init__(self):
-        import threading
-        self.map_lock = threading.Lock()
-        smach.State.__init__(self, outcomes=['succeeded', 'failed'])
-        
-        # 初始化探索区域的地图数据
-        self.costmap_msg = OccupancyGrid()
-        self.costmap_updates_msg = OccupancyGridUpdate()
-        
-        # 全局代价地图的订阅器
-        self.costmap_subscriber = rospy.Subscriber(
-            Config.TOPICS['GLOBAL_COSTMAP'], 
-            OccupancyGrid, 
-            self.costmap_callback
-        )
-        self.costmap_updates_subscriber = rospy.Subscriber(
-            Config.TOPICS['GLOBAL_COSTMAP_UPDATES'], 
-            OccupancyGridUpdate,
-            self.costmap_updates_callback
-        )
-        
-        # 前沿探索区域的地图数据的发布器
-        self.explore_costmap_publisher = rospy.Publisher(
-            Config.TOPICS['EXPLORE_COSTMAP'], 
-            OccupancyGrid, 
-            queue_size=10
-        )
-        self.explore_costmap_updates_publisher = rospy.Publisher(
-            Config.TOPICS['EXPLORE_COSTMAP_UPDATES'], 
-            OccupancyGridUpdate,  # 使用正确的消息类型
-            queue_size=10
-        )        
+        smach.State.__init__(self, outcomes=['succeeded', 'failed'])    
         
         # 添加前沿点订阅器 - 监听explore_lite发布的前沿点可视化
         self.frontier_subscriber = rospy.Subscriber(
@@ -236,71 +159,24 @@ class ExploreFrontier(smach.State):
         self.frontier_count = 999  # 初始化为一个大数字
         self.frontier_threshold = Config.EXPLORE['FRONTIER_THRESHOLD']  
         self.max_explore_time = Config.TIMEOUTS['EXPLORE']  
+
+        self.last_frontier_time = rospy.Time.now()  # 上次前沿点更新的时间
         
     def execute(self, userdata):
         rospy.loginfo('开始前沿探索任务...')
-
-        # 定期检查前沿点数量和更新掩码地图
-        rate = rospy.Rate(Config.EXPLORE['CHECK_RATE'])  
-        explore_start_time = rospy.Time.now()
-        
         rospy.loginfo('开始监控前沿点数量，阈值为%d', self.frontier_threshold)
-        
-        # 等待前沿探索启动并开始发布前沿点
-        rospy.loginfo('等待前沿探索启动...')
-        
-        # 等待地图数据就绪
-        while not rospy.is_shutdown():
-            with self.map_lock:
-                has_map_data = (len(self.costmap_msg.data) > 0)
-            
-            if not has_map_data:
-                rospy.loginfo('等待地图数据...')
-                rate.sleep()
-                continue
-            
-            break  # 跳出循环，开始主处理逻辑
         
         # 主处理循环
         rospy.loginfo('地图数据就绪，开始探索...')
         previous_frontier_count = self.frontier_count
         
-        while (rospy.Time.now() - explore_start_time).to_sec() < self.max_explore_time:
-            # 创建掩码地图，并立即释放锁
-            masked_costmap = None
-            masked_costmap_updates = None
-            frontier_count = 0
-            
-            # 使用锁保护地图数据的访问，但尽量减少持有锁的时间
-            with self.map_lock:
-                # 首先，检查地图数据是否有效
-                if len(self.costmap_msg.data) == 0:
-                    rospy.loginfo('等待有效的地图数据...')
-                    rate.sleep()
-                    continue
-                    
-                # 处理地图数据
-                masked_costmap = self.process_costmap(self.costmap_msg) if Config.MASKED_CONFIG['USE_MASKED'] else self.costmap_msg
-                masked_costmap_updates = self.process_costmap_updates(self.costmap_updates_msg) if Config.MASKED_CONFIG['USE_MASKED'] else self.costmap_updates_msg
-                frontier_count = self.frontier_count
-                if previous_frontier_count != frontier_count:
-                    rospy.loginfo('前沿点数量变化: %d -> %d', previous_frontier_count, frontier_count)
-                    previous_frontier_count = frontier_count
-            
-            # 发布处理过的地图（在锁外）
-            self.explore_costmap_publisher.publish(masked_costmap)
-            self.explore_costmap_updates_publisher.publish(masked_costmap_updates)
-                     
-            # 如果前沿点数量小于阈值，认为探索完成
-            if frontier_count <= self.frontier_threshold:
-                # 取消订阅器
-                self.costmap_subscriber.unregister()
-                self.costmap_updates_subscriber.unregister()
-                self.frontier_subscriber.unregister()
-                # 取消发布器
-                self.explore_costmap_publisher.unregister()
-                self.explore_costmap_updates_publisher.unregister()
-                # 关闭explore_lite节点
+        while (rospy.Time.now() - self.last_frontier_time).to_sec() < self.max_explore_time:
+            # 如果前沿点数量变化
+            if self.frontier_count != previous_frontier_count:
+                rospy.loginfo('前沿点数量变化: %d -> %d', previous_frontier_count, self.frontier_count)
+                previous_frontier_count = self.frontier_count
+            # 如果前沿点数量小于阈值或超时，认为探索完成
+            if self.frontier_count <= self.frontier_threshold:
                 rospy.loginfo('前沿点数量已低于阈值，探索任务完成')
                 return 'succeeded'
             else:
@@ -308,244 +184,19 @@ class ExploreFrontier(smach.State):
 
         # 停止探索
         rospy.loginfo('前沿探索超时, 停止任务')
-        # 取消订阅器
-        self.costmap_subscriber.unregister()
-        self.costmap_updates_subscriber.unregister()
-        self.frontier_subscriber.unregister()
-        # 取消发布器
-        self.explore_costmap_publisher.unregister()
-        self.explore_costmap_updates_publisher.unregister()
         
         return 'succeeded'  # 返回成功状态
-
-    def costmap_callback(self, msg):
-        with self.map_lock:
-            # 处理全局代价地图
-            self.costmap_msg = msg
-            self.last_complete_map = msg
-    
-    def costmap_updates_callback(self, msg):
-        with self.map_lock:
-            self.costmap_updates_msg = msg
-    
+  
     def frontier_callback(self, msg):
-        with self.map_lock:
-            # 计算有效的前沿点数量（通常每个前沿由多个标记点组成）
-            # 只计算TYPE_SPHERE类型的标记，它代表前沿中心点
-            frontier_count = 0
-            for marker in msg.markers:
-                if marker.type == marker.SPHERE:
-                    frontier_count += 1
-            
-            self.frontier_count = frontier_count
-        
-    def process_costmap(self, costmap_msg):
-        """处理代价地图，标记要探索的区域为自由空间，其他区域为障碍物"""
-        import copy
-        # 复制原始代价地图
-        masked_costmap = copy.deepcopy(costmap_msg)
-        
-        # 更新时间戳和帧 ID
-        masked_costmap.header.stamp = rospy.Time.now()
-        if masked_costmap.header.frame_id == "":
-            masked_costmap.header.frame_id = "map"
-        
-        # 获取地图信息
-        width = masked_costmap.info.width
-        height = masked_costmap.info.height
-        resolution = masked_costmap.info.resolution if Config.MASKED_CONFIG['USE_RESOLUTION'] else 1.0
-        origin_x = masked_costmap.info.origin.position.x
-        origin_y = masked_costmap.info.origin.position.y
-        
-        # 计算禁入区域的边界
-        restricted_area_x_min = int((Config.RESTRICTED_MAP_BOUNDS['X_MIN'] ) / resolution)
-        restricted_area_x_max = int((Config.RESTRICTED_MAP_BOUNDS['X_MAX'] ) / resolution)
-        restricted_area_y_min = int((Config.RESTRICTED_MAP_BOUNDS['Y_MIN'] ) / resolution)
-        restricted_area_y_max = int((Config.RESTRICTED_MAP_BOUNDS['Y_MAX'] ) / resolution)
-        
-        # 限制索引在地图范围内
-        restricted_area_x_min = max(0, min(width-1, restricted_area_x_min))
-        restricted_area_x_max = max(0, min(width-1, restricted_area_x_max))
-        restricted_area_y_min = max(0, min(height-1, restricted_area_y_min))
-        restricted_area_y_max = max(0, min(height-1, restricted_area_y_max))
-
-        # 计算探索区域的边界
-        explore_area_x_min = int((Config.EXPLORE_MAP_BOUNDS['X_MIN'] ) / resolution)
-        explore_area_x_max = int((Config.EXPLORE_MAP_BOUNDS['X_MAX'] ) / resolution)
-        explore_area_y_min = int((Config.EXPLORE_MAP_BOUNDS['Y_MIN'] ) / resolution)
-        explore_area_y_max = int((Config.EXPLORE_MAP_BOUNDS['Y_MAX'] ) / resolution)
-
-        # 限制索引在地图范围内
-        explore_area_x_min = max(0, min(width-1, explore_area_x_min))
-        explore_area_x_max = max(0, min(width-1, explore_area_x_max))
-        explore_area_y_min = max(0, min(height-1, explore_area_y_min))
-        explore_area_y_max = max(0, min(height-1, explore_area_y_max))
-        
-        rospy.loginfo('禁入区域边界: (%d, %d) - (%d, %d)', 
-                      restricted_area_x_min, restricted_area_y_min,
-                      restricted_area_x_max, restricted_area_y_max)
-        rospy.loginfo('探索区域边界: (%d, %d) - (%d, %d)', 
-                      explore_area_x_min, explore_area_y_min,
-                      explore_area_x_max, explore_area_y_max)
-        
-        # 将数据转换为可变列表
-        data_list = list(masked_costmap.data)
-        
-        # 标记禁入区域为障碍物，探索区域为未知，其余不变
-        modified_cells = 0
-        for y in range(height):
-            for x in range(width):
-                idx = y * width + x
-                if idx < len(data_list):
-                    if (restricted_area_x_min <= x <= restricted_area_x_max and
-                        restricted_area_y_min <= y <= restricted_area_y_max and
-                        Config.MASKED_CONFIG['USE_RESTRICTED_MASK']):
-                        # 在禁入区域内：标记为障碍物
-                        data_list[idx] = 100
-                        modified_cells += 1
-                    elif (explore_area_x_min <= x <= explore_area_x_max and 
-                          explore_area_y_min <= y <= explore_area_y_max and 
-                          Config.MASKED_CONFIG['USE_EXPLORE_MASK']):
-                        # 在探索区域内：标记为未知
-                        data_list[idx] = -1
-                        modified_cells += 1
-                    else:
-                        # 其他区域：保持原值
-                        pass
-                        
-        
-        # 转换回元组
-        masked_costmap.data = tuple(data_list)
-        
-        rospy.loginfo('掩码代价地图处理完成: 修改了 %d 个单元格', modified_cells)
-        
-        return masked_costmap
-
-    def process_costmap_updates(self, update_msg):
-        """处理代价地图更新，设置禁入区域为障碍物，探索区域为未知"""
-        import copy
-        masked_update = copy.deepcopy(update_msg)
-        
-        # 获取更新区域的信息
-        width = masked_update.width
-        height = masked_update.height
-        x_start = masked_update.x
-        y_start = masked_update.y
-        
-        # 如果没有数据，直接返回
-        if not masked_update.data:
-            return masked_update
-        
-        # 获取全局代价地图的信息（用于坐标转换）
-        if not hasattr(self, 'last_complete_map') or not self.last_complete_map.info:
-            rospy.logwarn('没有全局代价地图信息，无法处理更新')
-            return masked_update
-        
-        # 从完整地图中获取分辨率和原点位置
-        resolution = self.last_complete_map.info.resolution if Config.MASKED_CONFIG['USE_RESOLUTION'] else 1.0
-        origin_x = self.last_complete_map.info.origin.position.x
-        origin_y = self.last_complete_map.info.origin.position.y
-        
-        # 计算更新区域在实际世界中的绝对坐标
-        update_origin_x = origin_x + x_start * resolution
-        update_origin_y = origin_y + y_start * resolution
-        
-        # 获取禁入区域的世界坐标边界
-        restricted_x_min_world = Config.RESTRICTED_MAP_BOUNDS['X_MIN']
-        restricted_x_max_world = Config.RESTRICTED_MAP_BOUNDS['X_MAX']
-        restricted_y_min_world = Config.RESTRICTED_MAP_BOUNDS['Y_MIN']
-        restricted_y_max_world = Config.RESTRICTED_MAP_BOUNDS['Y_MAX']
-        
-        # 获取探索区域的世界坐标边界
-        explore_x_min_world = Config.EXPLORE_MAP_BOUNDS['X_MIN']
-        explore_x_max_world = Config.EXPLORE_MAP_BOUNDS['X_MAX']
-        explore_y_min_world = Config.EXPLORE_MAP_BOUNDS['Y_MIN']
-        explore_y_max_world = Config.EXPLORE_MAP_BOUNDS['Y_MAX']
-        
-        # 将世界坐标转换为更新区域内的局部坐标
-        # 首先计算这些边界在全局地图中的单元格坐标
-        restricted_x_min_global = int((restricted_x_min_world - origin_x) / resolution)
-        restricted_x_max_global = int((restricted_x_max_world - origin_x) / resolution)
-        restricted_y_min_global = int((restricted_y_min_world - origin_y) / resolution)
-        restricted_y_max_global = int((restricted_y_max_world - origin_y) / resolution)
-        
-        explore_x_min_global = int((explore_x_min_world - origin_x) / resolution)
-        explore_x_max_global = int((explore_x_max_world - origin_x) / resolution)
-        explore_y_min_global = int((explore_y_min_world - origin_y) / resolution)
-        explore_y_max_global = int((explore_y_max_world - origin_y) / resolution)
-        
-        # 然后将全局坐标转换为更新区域内的局部坐标
-        restricted_x_min_local = restricted_x_min_global - x_start
-        restricted_x_max_local = restricted_x_max_global - x_start
-        restricted_y_min_local = restricted_y_min_global - y_start
-        restricted_y_max_local = restricted_y_max_global - y_start
-        
-        explore_x_min_local = explore_x_min_global - x_start
-        explore_x_max_local = explore_x_max_global - x_start
-        explore_y_min_local = explore_y_min_global - y_start
-        explore_y_max_local = explore_y_max_global - y_start
-        
-        # 限制局部坐标在更新区域范围内
-        restricted_x_min_local = max(0, min(width-1, restricted_x_min_local))
-        restricted_x_max_local = max(0, min(width-1, restricted_x_max_local))
-        restricted_y_min_local = max(0, min(height-1, restricted_y_min_local))
-        restricted_y_max_local = max(0, min(height-1, restricted_y_max_local))
-        
-        explore_x_min_local = max(0, min(width-1, explore_x_min_local))
-        explore_x_max_local = max(0, min(width-1, explore_x_max_local))
-        explore_y_min_local = max(0, min(height-1, explore_y_min_local))
-        explore_y_max_local = max(0, min(height-1, explore_y_max_local))
-        
-        rospy.loginfo('代价地图更新: 局部禁入区域边界: (%d,%d)-(%d,%d)', 
-                    restricted_x_min_local, restricted_y_min_local,
-                    restricted_x_max_local, restricted_y_max_local)
-        rospy.loginfo('代价地图更新: 局部探索区域边界: (%d,%d)-(%d,%d)', 
-                    explore_x_min_local, explore_y_min_local,
-                    explore_x_max_local, explore_y_max_local)
-
-        # 标记区域 - 将数据转换为列表以便修改
-        data_list = list(masked_update.data)
-        modified_cells = 0
-        
-        for y in range(height):
-            for x in range(width):
-                idx = y * width + x
-                if idx < len(data_list):
-                    if (restricted_x_min_local <= x <= restricted_x_max_local and 
-                        restricted_y_min_local <= y <= restricted_y_max_local and
-                        Config.MASKED_CONFIG['USE_RESTRICTED_MASK']):
-                        # 在禁入区域内：标记为障碍物
-                        data_list[idx] = 100
-                        modified_cells += 1
-                    elif (explore_x_min_local <= x <= explore_x_max_local and 
-                        explore_y_min_local <= y <= explore_y_max_local and
-                        Config.MASKED_CONFIG['USE_EXPLORE_MASK']):
-                        # 在探索区域内：标记为未知
-                        data_list[idx] = -1
-                        modified_cells += 1
-                    else:
-                        # 其他区域：保持原值
-                        pass
-        
-        # 转换回元组并更新消息
-        masked_update.data = tuple(data_list)
-        
-        rospy.loginfo('更新掩码已处理: 修改了 %d 个单元格', modified_cells)
-        
-        return masked_update
+        self.frontier_count = len(msg.markers)
+        self.last_frontier_time = rospy.Time.now()
 
 # 定义状态：盒子位置检测任务
 class DetectBoxPose(smach.State):
     def __init__(self):      
         smach.State.__init__(self, outcomes=['succeeded', 'failed'], 
                              output_keys=['box_positions_out'])
-        
-        # 添加全局代价地图订阅
-        self.costmap_subscriber = rospy.Subscriber(
-            Config.TOPICS['BOX_EXTRACTION'], 
-            OccupancyGrid, 
-            self.costmap_callback
-        )
+
         # 添加盒子位置发布器
         self.box_publisher = rospy.Publisher(
             Config.TOPICS['DETECTED_BOXES'], 
@@ -558,7 +209,12 @@ class DetectBoxPose(smach.State):
             MarkerArray, 
             queue_size=10
         )
-
+        # 添加全局代价地图订阅
+        self.costmap_subscriber = rospy.Subscriber(
+            Config.TOPICS['BOX_EXTRACTION'], 
+            OccupancyGrid, 
+            self.costmap_callback
+        )
         self.box_positions = []  # 用于存储检测到的盒子位置
         self.detection_timeout = Config.TIMEOUTS['BOX_DETECTION']
         self.costmap = None  # 存储最新的代价地图
@@ -568,33 +224,57 @@ class DetectBoxPose(smach.State):
         self.box_positions = []
 
         rospy.loginfo('执行盒子检测任务...')
-        try:
-            # 使用代价地图检测盒子
-            rospy.loginfo('使用代价地图进行盒子检测...')
-            costmap_boxes = self.detect_boxes_from_costmap()
-
-            # 如果检测到盒子，保存到userdata中
-            if costmap_boxes:
-                self.box_positions = costmap_boxes
-                # 将盒子姿态数组创建为PoseArray，便于传递
-                pose_array = PoseArray()
-                pose_array.header.frame_id = "map"
-                pose_array.header.stamp = rospy.Time.now()
-                pose_array.poses = [box.pose for box in costmap_boxes]
-                userdata.box_positions_out = pose_array
-                rospy.loginfo('成功从代价地图检测到%d个盒子', len(costmap_boxes))
-                
-                # 发布检测到的盒子位置
-                self.box_publisher.publish(pose_array)
-                return 'succeeded'
-            else:
-                rospy.logwarn('从代价地图未检测到盒子')
-                return 'failed'
         
-        except Exception as e:
-            rospy.logerr('盒子检测错误: %s', str(e))
-            return 'failed'    
-       
+        # 设置最大重试次数和重试间隔
+        max_retries = 5
+        retry_interval = 1.0  # 秒
+        retry_count = 0
+        
+        while retry_count < max_retries:
+            try:
+                # 检查代价地图是否准备好
+                if self.costmap is None:
+                    retry_count += 1
+                    rospy.logwarn('代价地图未接收，重试 %d/%d...', retry_count, max_retries)
+                    rospy.sleep(retry_interval)
+                    continue
+                
+                # 使用代价地图检测盒子
+                rospy.loginfo('使用代价地图进行盒子检测...')
+                costmap_boxes = self.detect_boxes_from_costmap()
+
+                # 如果检测到盒子，保存到userdata中
+                if costmap_boxes:
+                    self.box_positions = costmap_boxes
+                    if len(costmap_boxes) < 5:
+                        continue
+                    # 将盒子姿态数组创建为PoseArray，便于传递
+                    pose_array = PoseArray()
+                    pose_array.header.frame_id = "map"
+                    pose_array.header.stamp = rospy.Time.now()
+                    pose_array.poses = [box.pose for box in costmap_boxes]
+                    userdata.box_positions_out = pose_array
+                    rospy.loginfo('成功从代价地图检测到%d个盒子', len(costmap_boxes))
+                    
+                    # 发布检测到的盒子位置
+                    self.box_publisher.publish(pose_array)
+                    return 'succeeded'
+                # 如果没有检测到盒子，尝试重试
+                else:
+                    retry_count += 1
+                    rospy.logwarn('从代价地图未检测到盒子，重试 %d/%d...', retry_count, max_retries)
+                    # 等待一段时间后重试
+                    rospy.sleep(retry_interval)
+            
+            except Exception as e:
+                retry_count += 1
+                rospy.logerr('盒子检测错误: %s，重试 %d/%d...', str(e), retry_count, max_retries)
+                rospy.sleep(retry_interval)
+        
+        # 如果所有重试都失败，则返回失败
+        rospy.logerr('经过%d次尝试后仍未能检测到盒子，放弃检测', max_retries)
+        return 'failed'
+              
     def costmap_callback(self, msg):
         """处理接收到的代价地图"""
         self.costmap = msg
@@ -617,6 +297,22 @@ class DetectBoxPose(smach.State):
         
         # 将一维数组转为二维网格
         grid = np.array(self.costmap.data).reshape((height, width))
+
+        # 保存代价地图图像
+        timestamp = rospy.Time.now().to_sec()
+        filename = f"/tmp/costmap_{timestamp:.0f}.png"
+        
+        plt.figure(figsize=(10, 10))
+        plt.imshow(grid, cmap='hot', origin='lower')
+        plt.colorbar(label='cost')
+        plt.title(f'costmap ({width}x{height}, resolution: {resolution:.2f}m/pixel)')
+        plt.xlabel('X (pixels)')
+        plt.ylabel('Y (pixels)')
+        plt.savefig(filename)
+        plt.close()
+        rospy.loginfo(f'用于聚类的代价地图已保存到: {filename}')
+        
+        rospy.loginfo('正在处理代价地图以检测盒子...')
         
         # 检测高占用值区域（障碍物/盒子）
         obstacle_threshold = Config.OBSTACLE_THRESHOLD
@@ -636,7 +332,7 @@ class DetectBoxPose(smach.State):
         points = np.column_stack([obstacles[1], obstacles[0]])  # x对应列，y对应行
         
         # 使用DBSCAN进行聚类
-        clustering = DBSCAN(eps=5, min_samples=10).fit(points)
+        clustering = DBSCAN(eps=Config.CLUSTERING['EPS'], min_samples=Config.CLUSTERING['MIN_SAMPLES']).fit(points)
         labels = clustering.labels_
         
         # 计算每个聚类的中心点

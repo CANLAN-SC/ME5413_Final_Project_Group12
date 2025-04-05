@@ -74,7 +74,7 @@ roslaunch fsm final.launch
 > dos2unix src/ocr/scripts/after_bridge_ocr.py
 > ```
 
-### 2. 加入状态机
+### 2. **等待探索开始后**,加入状态机
 
 新开终端
 ```bash
