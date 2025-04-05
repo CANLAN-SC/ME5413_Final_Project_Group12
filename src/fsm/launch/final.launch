@@ -1,0 +1,21 @@
+<launch>
+    <!-- Include world and manual control launch file from me5413_world-->
+    <include file="$(find me5413_world)/launch/world.launch" />
+    <include file="$(find me5413_world)/launch/manual.launch" />
+    
+    <!-- Include navigation launch file -->
+    <include file="$(find navigation)/launch/navigation.launch" />
+    
+    <!-- Include ocr launch file -->
+    <include file="$(find ocr)/launch/ocr.launch" />
+
+    <!-- Include box_detection launch file -->
+    <include file="$(find box_detection)/launch/box_detection.launch" />
+
+    <!-- Include frontier_explore launch file -->
+    <include file="$(find frontier_explore)/launch/frontier_explore.launch" />
+
+    <!-- Include SLAM launch file -->
+    <!-- <include file="$(find slam)/launch/fast_lio.launch" /> -->
+
+</launch>
