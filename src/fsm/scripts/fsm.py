@@ -210,16 +210,23 @@ class DetectBoxPose(smach.State):
             queue_size=10
         )
         # 添加全局代价地图订阅
-        self.costmap_subscriber = rospy.Subscriber(
-            Config.TOPICS['BOX_EXTRACTION'], 
-            OccupancyGrid, 
-            self.costmap_callback
-        )
+        # self.costmap_subscriber = rospy.Subscriber(
+        #     Config.TOPICS['BOX_EXTRACTION'], 
+        #     OccupancyGrid, 
+        #     self.costmap_callback,
+        #     queue_size=50
+        # )
         self.box_positions = []  # 用于存储检测到的盒子位置
         self.detection_timeout = Config.TIMEOUTS['BOX_DETECTION']
         self.costmap = None  # 存储最新的代价地图
                
     def execute(self, userdata):
+        self.costmap_subscriber = rospy.Subscriber(
+            Config.TOPICS['BOX_EXTRACTION'], 
+            OccupancyGrid, 
+            self.costmap_callback,
+            queue_size=50
+        )
         # 重置盒子位置列表
         self.box_positions = []
 
@@ -278,6 +285,7 @@ class DetectBoxPose(smach.State):
     def costmap_callback(self, msg):
         """处理接收到的代价地图"""
         self.costmap = msg
+        rospy.loginfo('接收到代价地图，宽度: %d, 高度: %d', msg.info.width, msg.info.height)
 
     def detect_boxes_from_costmap(self):
         """从代价地图中提取盒子位置"""
@@ -300,7 +308,7 @@ class DetectBoxPose(smach.State):
 
         # 保存代价地图图像
         timestamp = rospy.Time.now().to_sec()
-        filename = f"/tmp/costmap_{timestamp:.0f}.png"
+        filename = f"./map_for/costmap_{timestamp:.0f}.png"
         
         plt.figure(figsize=(10, 10))
         plt.imshow(grid, cmap='hot', origin='lower')
