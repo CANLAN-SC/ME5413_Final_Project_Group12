@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import os
 import rospy
 import smach
 import smach_ros
@@ -31,6 +32,7 @@ class Config:
         # Detection trigger and result topics
         'BOX_DETECTION_TRIGGER': '/box_detection_trigger',
         'DETECTED_BOXES': '/detected_boxes',
+        'DETECTED_BOUNDING_BOXES': '/detected_bounding_boxes',
         'BRIDGE_DETECTION_TRIGGER': '/bridge_detection_trigger',
         'DETECTED_BRIDGES': '/detected_bridges',
         'OCR_TRIGGER': '/ocr_trigger',
@@ -176,6 +178,14 @@ class DetectBoxPose(smach.State):
             PoseArray, 
             queue_size=10
         )
+
+        # Add bounding box publisher
+        self.bounding_box_publisher = rospy.Publisher(
+            Config.TOPICS['DETECTED_BOUNDING_BOXES'], 
+            MarkerArray, 
+            queue_size=10
+        )
+
         # Add box generation area publisher
         self.box_area_publisher = rospy.Publisher(
             '/box_area', 
@@ -190,6 +200,7 @@ class DetectBoxPose(smach.State):
         #     queue_size=50
         # )
         self.box_positions = []  # For storing detected box positions
+        self.bounding_boxes = []
         self.detection_timeout = Config.TIMEOUTS['BOX_DETECTION']
         self.costmap = None  # Store latest costmap
                
@@ -202,6 +213,7 @@ class DetectBoxPose(smach.State):
         )
         # Reset box position list
         self.box_positions = []
+        self.bounding_boxes = []
 
         rospy.loginfo('Executing box detection task...')
         
@@ -221,11 +233,12 @@ class DetectBoxPose(smach.State):
                 
                 # Use costmap to detect boxes
                 rospy.loginfo('Using costmap for box detection...')
-                costmap_boxes = self.detect_boxes_from_costmap()
+                costmap_boxes, costmap_bounding_boxes = self.detect_boxes_from_costmap()
 
                 # If boxes are detected, save to userdata
                 if costmap_boxes:
                     self.box_positions = costmap_boxes
+                    self.bounding_boxes = costmap_bounding_boxes
                     if len(costmap_boxes) < 5:
                         continue
                     # Create PoseArray from box poses for easier passing
@@ -233,11 +246,15 @@ class DetectBoxPose(smach.State):
                     pose_array.header.frame_id = "map"
                     pose_array.header.stamp = rospy.Time.now()
                     pose_array.poses = [box.pose for box in costmap_boxes]
+                    # Create MarkerArray from bounding boxes
+                    marker_array = MarkerArray()
+                    marker_array.markers = [bounding_box for bounding_box in costmap_bounding_boxes]
                     userdata.box_positions_out = pose_array
                     rospy.loginfo('Successfully detected %d boxes from costmap', len(costmap_boxes))
                     
                     # Publish detected box positions
                     self.box_publisher.publish(pose_array)
+                    self.bounding_box_publisher.publish(marker_array)
                     return 'succeeded'
                 # If no boxes detected, try again
                 else:
@@ -281,7 +298,10 @@ class DetectBoxPose(smach.State):
 
         # Save costmap image
         timestamp = rospy.Time.now().to_sec()
-        filename = f"./map_for/costmap_{timestamp:.0f}.png"
+        costmap_path = './costmap'
+        if not os.path.exists(costmap_path):
+            os.makedirs(costmap_path)
+        filename = f"{costmap_path}/costmap_{timestamp:.0f}.png"
         
         plt.figure(figsize=(10, 10))
         plt.imshow(grid, cmap='hot', origin='lower')
@@ -318,6 +338,7 @@ class DetectBoxPose(smach.State):
         
         # Calculate center point for each cluster
         box_positions = []
+        bounding_boxes = []
         unique_labels = set(labels)
 
         for label in unique_labels:
@@ -345,12 +366,14 @@ class DetectBoxPose(smach.State):
                 width < Config.CLUSTERING['width'] and height < Config.CLUSTERING['height']):  # Size limits (in grid cells)
                 
                 # Calculate cluster center
-                center_x = np.mean(cluster_points[:, 0])
-                center_y = np.mean(cluster_points[:, 1])
+                center_x = (min_x + max_x) / 2
+                center_y = (min_y + max_y) / 2
                 
                 # Convert center point to map coordinates
                 map_x = center_x * resolution + origin_x
                 map_y = center_y * resolution + origin_y
+                width_in_map = width * resolution
+                height_in_map = height * resolution
             
                 # Create pose message
                 pose = PoseStamped()
@@ -361,6 +384,53 @@ class DetectBoxPose(smach.State):
                 pose.pose.position.z = 0.0
                 # Default orientation, facing forward
                 pose.pose.orientation.w = 1.0
+
+                # Create marker message
+                marker = Marker()
+                marker.header.frame_id = "map"
+                marker.header.stamp = rospy.Time.now()
+                marker.ns = "bounding_boxes"
+                marker.id = int(label)
+                marker.type = Marker.LINE_STRIP
+                marker.action = Marker.ADD
+                marker.pose.orientation.w = 1.0
+                marker.scale.x = 0.1  # Line width
+                # Set marker color to red, alpha 0
+                marker.color = ColorRGBA(1.0, 0.0, 0.0, 1.0)  # R, G, B, A
+
+                # Add four corner points of exploration area, forming a closed loop
+                corner_points = []
+                # Bottom left
+                p1 = Point()
+                p1.x = map_x - width_in_map/2
+                p1.y = map_y - height_in_map/2
+                p1.z = 0.1  # Slightly above ground
+                corner_points.append(p1)
+        
+                # Bottom right
+                p2 = Point()
+                p2.x = map_x + width_in_map/2
+                p2.y = map_y - height_in_map/2
+                p2.z = 0.1
+                corner_points.append(p2)
+        
+                # Top right
+                p3 = Point()
+                p3.x = map_x + width_in_map/2
+                p3.y = map_y + height_in_map/2
+                p3.z = 0.1
+                corner_points.append(p3)
+        
+                # Top left
+                p4 = Point()
+                p4.x = map_x - width_in_map/2
+                p4.y = map_y + height_in_map/2
+                p4.z = 0.1
+                corner_points.append(p4)
+        
+                # Back to start point to close the loop
+                corner_points.append(p1)
+                marker.points = corner_points
                 
                 # Only detect boxes in exploration area
                 rospy.loginfo('Box position: x=%.2f, y=%.2f', map_x, map_y)
@@ -373,11 +443,12 @@ class DetectBoxPose(smach.State):
                 if (Config.EXPLORE_MAP_BOUNDS['X_MIN'] <= map_x <= Config.EXPLORE_MAP_BOUNDS['X_MAX'] and
                     Config.EXPLORE_MAP_BOUNDS['Y_MIN'] <= map_y <= Config.EXPLORE_MAP_BOUNDS['Y_MAX']):
                     box_positions.append(pose)
+                    bounding_boxes.append(marker)
                     rospy.loginfo(f"Detected box from costmap: x={map_x:.2f}, y={map_y:.2f}")
                 else:
                     rospy.loginfo(
                         f"Box position x={map_x:.2f}, y={map_y:.2f} is outside exploration area range {Config.EXPLORE_MAP_BOUNDS['X_MIN']:.2f}~{Config.EXPLORE_MAP_BOUNDS['X_MAX']:.2f}, {Config.EXPLORE_MAP_BOUNDS['Y_MIN']:.2f}~{Config.EXPLORE_MAP_BOUNDS['Y_MAX']:.2f}")
-        return box_positions
+        return box_positions, bounding_boxes
 
     def publish_explore_area(self):
         """Publish visualization markers for exploration area"""
@@ -400,7 +471,7 @@ class DetectBoxPose(smach.State):
         marker.scale.x = 0.1  # Line width
         
         # Set marker color to green, alpha 0
-        marker.color = ColorRGBA(0.0, 1.0, 0.0, 0.0)  # R, G, B, A
+        marker.color = ColorRGBA(0.0, 1.0, 0.0, 1.0)  # R, G, B, A
         
         # Add four corner points of exploration area, forming a closed loop
         points = []
@@ -408,28 +479,28 @@ class DetectBoxPose(smach.State):
         p1 = Point()
         p1.x = Config.EXPLORE_MAP_BOUNDS['X_MIN']
         p1.y = Config.EXPLORE_MAP_BOUNDS['Y_MIN']
-        p1.z = 0.1  # Slightly above ground
+        p1.z = 0.05  # Slightly above ground
         points.append(p1)
         
         # Bottom right
         p2 = Point()
         p2.x = Config.EXPLORE_MAP_BOUNDS['X_MAX']
         p2.y = Config.EXPLORE_MAP_BOUNDS['Y_MIN']
-        p2.z = 0.1
+        p2.z = 0.05
         points.append(p2)
         
         # Top right
         p3 = Point()
         p3.x = Config.EXPLORE_MAP_BOUNDS['X_MAX']
         p3.y = Config.EXPLORE_MAP_BOUNDS['Y_MAX']
-        p3.z = 0.1
+        p3.z = 0.05
         points.append(p3)
         
         # Top left
         p4 = Point()
         p4.x = Config.EXPLORE_MAP_BOUNDS['X_MIN']
         p4.y = Config.EXPLORE_MAP_BOUNDS['Y_MAX']
-        p4.z = 0.1
+        p4.z = 0.05
         points.append(p4)
         
         # Back to start point to close the loop
