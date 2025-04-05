@@ -45,6 +45,8 @@ sudo apt-get update
 sudo apt-get install python-opencv python-numpy ros-$ROS_DISTRO-teleop-twist-keyboard ros-$ROS_DISTRO-gmapping ros-$ROS_DISTRO-move-base
 sudo apt-get install tesseract-ocr libtesseract-dev
 pip install pytesseract scikit-learn
+sudo apt-get install ros-$ROS_DISTRO-smach ros-$ROS_DISTRO-smach-ros 
+sudo apt-get install ros-$ROS_DISTRO-explore-lite
 ```
 
 4. 编译工作空间:

@@ -13,6 +13,7 @@ from visualization_msgs.msg import MarkerArray, Marker
 from geometry_msgs.msg import Point
 import math
 from std_msgs.msg import Int32, ColorRGBA
+from sklearn.cluster import DBSCAN
 
 # Visualization
 import matplotlib.pyplot as plt
@@ -320,7 +321,6 @@ class DetectBoxPose(smach.State):
         obstacles = np.where(grid > obstacle_threshold)
         
         # Clustering - using simple distance-based clustering
-        from sklearn.cluster import DBSCAN
         
         # If no obstacle points, return empty list
         if len(obstacles[0]) == 0:
@@ -452,10 +452,6 @@ class DetectBoxPose(smach.State):
 
     def publish_explore_area(self):
         """Publish visualization markers for exploration area"""
-        from visualization_msgs.msg import Marker, MarkerArray
-        from std_msgs.msg import ColorRGBA
-        from geometry_msgs.msg import Point
-        
         # Create marker array
         marker_array = MarkerArray()
         
