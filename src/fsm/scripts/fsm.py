@@ -47,7 +47,7 @@ class Config:
         # 'BOX_EXTRACTION': '/move_base/global_costmap/costmap/obstacles_layer',
         'BOX_EXTRACTION': '/move_base/global_costmap/costmap',
         # OCR related topics
-        'RECOGNIZED_DIGIT': '/recognized_digit',
+        'RECOGNIZED_DIGIT': '/recognized_digit',        
     }
     
     # Timeout settings (seconds)
@@ -72,6 +72,14 @@ class Config:
         'Y_MAX': -2.0,   # Map Y coordinate maximum value
     }
 
+    # River area settings
+    RIVER_BOUNDS = {
+        'X_MIN': 5.0,    # Map X coordinate minimum value
+        'X_MAX': 10.0,   # Map X coordinate maximum value
+        'Y_MIN': -22.0,    # Map Y coordinate minimum value
+        'Y_MAX': -2.0,   # Map Y coordinate maximum value
+    }
+
     # Exploration related settings
     EXPLORE = {
         'FRONTIER_THRESHOLD': 0,     # Frontier point count threshold, below this value exploration is considered complete
@@ -79,9 +87,7 @@ class Config:
     }
     
     # Bridge related settings
-    BRIDGE = {
-        'EXIT_Y_OFFSET': -3.0,       # Bridge exit Y-axis offset relative to entrance
-    }
+    BRIDGE_LENGTH = 5.0  # Bridge length (meters)
     
     # Target position coordinate list (x, y, orientation.w)
     GOALS = [
@@ -108,6 +114,13 @@ class Config:
         'MAX_POINTS': 200,  # Maximum point count
         'MIN_SAMPLES': 5,  # Minimum sample size
         'EPS': 5,  # DBSCAN eps parameter, smaller eps creates more, smaller clusters
+
+        'width_bridge': 70,
+        'height_bridge': 100,
+        'MIN_POINTS_BRIDGE': 50,  # Minimum point count
+        'MAX_POINTS_BRIDGE': 300,  # Maximum point count
+        'MIN_SAMPLES_BRIDGE': 10,  # Minimum sample size
+        'EPS_BRIDGE': 6,  # DBSCAN eps parameter, larger eps creates fewer, larger clusters
     }
 
 # Utility functions
@@ -342,6 +355,267 @@ def visualize_box_viewing_positions(box_pose, viewing_positions):
     view_positions_publisher.publish(marker_array)
     rospy.loginfo("Box and its viewing positions visualization published")
 
+def detect_bridge_from_costmap(costmap):
+    """Extract box or bridge positions from costmap"""
+    if costmap is None:
+        rospy.logwarn("Cannot detect boxes from costmap: costmap not received")
+        return []
+        
+    # Convert costmap to numpy array for processing
+    rospy.loginfo('Processing costmap to detect boxes...')
+    width = costmap.info.width
+    height = costmap.info.height
+    resolution = costmap.info.resolution
+    origin_x = costmap.info.origin.position.x
+    origin_y = costmap.info.origin.position.y
+    rospy.loginfo('Costmap resolution: %.2f m/pixel', resolution)
+    rospy.loginfo('Costmap origin: (%.2f, %.2f)', origin_x, origin_y)
+    
+    # Convert 1D array to 2D grid
+    grid = np.array(costmap.data).reshape((height, width))
+
+    # Save costmap image
+    timestamp = rospy.Time.now().to_sec()
+    costmap_path = './costmap/'
+    if not os.path.exists(costmap_path):
+        os.makedirs(costmap_path)
+    filename = f"{costmap_path}/costmap_for_bridge_{timestamp:.0f}.png"
+    
+    plt.figure(figsize=(10, 10))
+    plt.imshow(grid, cmap='hot', origin='lower')
+    plt.colorbar(label='cost')
+    plt.title(f'costmap for bridge ({width}x{height}, resolution: {resolution:.2f}m/pixel)')
+    plt.xlabel('X (pixels)')
+    plt.ylabel('Y (pixels)')
+    plt.savefig(filename)
+    plt.close()
+    rospy.loginfo(f'Costmap for clustering saved to: {filename}')
+    
+    rospy.loginfo('Processing costmap to detect bridge...')
+    
+    # Detect high occupancy value areas (obstacles)
+    obstacle_threshold = Config.OBSTACLE_THRESHOLD
+    obstacles = np.where(grid > obstacle_threshold)
+    
+    # Clustering - using simple distance-based clustering
+    
+    # If no obstacle points, return empty list
+    if len(obstacles[0]) == 0:
+        rospy.logwarn("No obstacle points detected")
+        return []
+    else:
+        rospy.loginfo("Detected %d obstacle points", len(obstacles[0]))
+        
+    # Convert obstacle points to coordinate list
+    points = np.column_stack([obstacles[1], obstacles[0]])  # x corresponds to columns, y to rows
+    
+    # Use DBSCAN for clustering
+    clustering = DBSCAN(eps=Config.CLUSTERING['EPS_BRIDGE'], min_samples=Config.CLUSTERING['MIN_SAMPLES_BRIDGE']).fit(points)
+    labels = clustering.labels_
+    
+    # Calculate center point for each cluster
+    river_positions = []
+    bounding_boxes = []
+    unique_labels = set(labels)
+
+    for label in unique_labels:
+        # Skip noise points (label -1)
+        if label == -1:
+            continue
+            
+        # Get all points in current cluster
+        cluster_points = points[labels == label]
+        
+        # Calculate cluster size
+        cluster_size = len(cluster_points)
+        
+        # Calculate cluster bounding box
+        min_x, min_y = np.min(cluster_points, axis=0)
+        max_x, max_y = np.max(cluster_points, axis=0)
+        width = max_x - min_x
+        height = max_y - min_y
+        
+        # Filter conditions: boxes should be small compact clusters
+        # 1. Cluster point count should not be too many (adjust based on actual box size)
+        # 2. Shape should be close to square
+        # 3. Size should be within reasonable range
+        if (Config.CLUSTERING['MIN_POINTS_BRIDGE'] <= cluster_size <= Config.CLUSTERING['MAX_POINTS_BRIDGE'] and  # Point count range
+            width < Config.CLUSTERING['width_bridge'] and height < Config.CLUSTERING['height_bridge']):  # Size limits (in grid cells)
+            
+            # Calculate cluster center
+            center_x = (min_x + max_x) / 2
+            center_y = (min_y + max_y) / 2
+            
+            # Convert center point to map coordinates
+            map_x = center_x * resolution + origin_x
+            map_y = center_y * resolution + origin_y
+            width_in_map = width * resolution
+            height_in_map = height * resolution
+        
+            # Create pose message
+            pose = PoseStamped()
+            pose.header.frame_id = "map"
+            pose.header.stamp = rospy.Time.now()
+            pose.pose.position.x = map_x
+            pose.pose.position.y = map_y
+            pose.pose.position.z = 0.0
+            # Default orientation, facing forward
+            pose.pose.orientation.w = 1.0
+
+            # Create marker message
+            marker = Marker()
+            marker.header.frame_id = "map"
+            marker.header.stamp = rospy.Time.now()
+            marker.ns = "bounding_boxes"
+            marker.id = int(label)
+            marker.type = Marker.CUBE
+            marker.action = Marker.ADD
+            marker.pose.orientation.w = 1.0
+            marker.scale.x = 0.1  # Line width
+            # Set marker color to red, alpha 0
+            marker.color = ColorRGBA(1.0, 0.0, 0.0, 1.0)  # R, G, B, A
+
+            # Add four corner points of exploration area, forming a closed loop
+            corner_points = []
+            # Bottom left
+            p1 = Point()
+            p1.x = map_x - width_in_map/2
+            p1.y = map_y - height_in_map/2
+            p1.z = 0.1  # Slightly above ground
+            corner_points.append(p1)
+    
+            # Bottom right
+            p2 = Point()
+            p2.x = map_x + width_in_map/2
+            p2.y = map_y - height_in_map/2
+            p2.z = 0.1
+            corner_points.append(p2)
+    
+            # Top right
+            p3 = Point()
+            p3.x = map_x + width_in_map/2
+            p3.y = map_y + height_in_map/2
+            p3.z = 0.1
+            corner_points.append(p3)
+    
+            # Top left
+            p4 = Point()
+            p4.x = map_x - width_in_map/2
+            p4.y = map_y + height_in_map/2
+            p4.z = 0.1
+            corner_points.append(p4)
+    
+            # Back to start point to close the loop
+            corner_points.append(p1)
+            marker.points = corner_points
+            
+            # Only detect boxes in exploration area
+            rospy.loginfo('Box position: x=%.2f, y=%.2f', map_x, map_y)
+        
+            # Publish exploration area
+            # publish_explore_area()
+
+            # Check if box is within exploration area
+            rospy.loginfo('Checking if box is within exploration area...')
+            if (Config.RIVER_BOUNDS['X_MIN'] <= map_x <= Config.RIVER_BOUNDS['X_MAX'] and
+                Config.RIVER_BOUNDS['Y_MIN'] <= map_y <= Config.RIVER_BOUNDS['Y_MAX']):
+                river_positions.append(pose)
+                bounding_boxes.append(marker)
+                rospy.loginfo(f"Detected box from costmap: x={map_x:.2f}, y={map_y:.2f}")
+            else:
+                rospy.loginfo(
+                    f"Box position x={map_x:.2f}, y={map_y:.2f} is outside exploration area range {Config.EXPLORE_MAP_BOUNDS['X_MIN']:.2f}~{Config.EXPLORE_MAP_BOUNDS['X_MAX']:.2f}, {Config.EXPLORE_MAP_BOUNDS['Y_MIN']:.2f}~{Config.EXPLORE_MAP_BOUNDS['Y_MAX']:.2f}")
+    return river_positions, bounding_boxes
+
+def publish_river_area(river_area_publisher):
+    """Publish visualization markers for river area"""
+    # Create marker array
+    marker_array = MarkerArray()
+    
+    # Create area boundary marker
+    marker = Marker()
+    marker.header.frame_id = "map"
+    marker.header.stamp = rospy.Time.now()
+    marker.ns = "explore_area"
+    marker.id = 0
+    marker.type = Marker.LINE_STRIP
+    marker.action = Marker.ADD
+    marker.pose.orientation.w = 1.0
+    marker.scale.x = 0.1  # Line width
+    
+    # Set marker color to green, alpha 0
+    marker.color = ColorRGBA(0.0, 1.0, 0.0, 1.0)  # R, G, B, A
+    
+    # Add four corner points of exploration area, forming a closed loop
+    points = []
+    # Bottom left
+    p1 = Point()
+    p1.x = Config.RIVER_BOUNDS['X_MIN']
+    p1.y = Config.RIVER_BOUNDS['Y_MIN']
+    p1.z = 0.05  # Slightly above ground
+    points.append(p1)
+    
+    # Bottom right
+    p2 = Point()
+    p2.x = Config.RIVER_BOUNDS['X_MAX']
+    p2.y = Config.RIVER_BOUNDS['Y_MIN']
+    p2.z = 0.05
+    points.append(p2)
+    
+    # Top right
+    p3 = Point()
+    p3.x = Config.RIVER_BOUNDS['X_MAX']
+    p3.y = Config.RIVER_BOUNDS['Y_MAX']
+    p3.z = 0.05
+    points.append(p3)
+    
+    # Top left
+    p4 = Point()
+    p4.x = Config.RIVER_BOUNDS['X_MIN']
+    p4.y = Config.RIVER_BOUNDS['Y_MAX']
+    p4.z = 0.05
+    points.append(p4)
+    
+    # Back to start point to close the loop
+    points.append(p1)
+    
+    marker.points = points
+    marker.lifetime = rospy.Duration(5.0)  # Marker displayed for 5 seconds
+    
+    # Create filled area marker
+    fill_marker = Marker()
+    fill_marker.header.frame_id = "map"
+    fill_marker.header.stamp = rospy.Time.now()
+    fill_marker.ns = "river_fill"
+    fill_marker.id = 1
+    fill_marker.type = Marker.TRIANGLE_LIST
+    fill_marker.action = Marker.ADD
+    fill_marker.pose.orientation.w = 1.0
+    fill_marker.scale.x = 1.0
+    fill_marker.scale.y = 1.0
+    fill_marker.scale.z = 1.0
+    
+    # Set fill color to light green, semi-transparent
+    fill_marker.color = ColorRGBA(0.0, 0.8, 0.2, 0.3)  # R, G, B, A
+    
+    # Create two triangles to fill rectangular area
+    fill_points = []
+    # Triangle 1: Bottom left - Bottom right - Top left
+    fill_points.extend([p1, p2, p4])
+    # Triangle 2: Bottom right - Top right - Top left
+    fill_points.extend([p2, p3, p4])
+    
+    fill_marker.points = fill_points
+    fill_marker.lifetime = rospy.Duration(5.0)
+    
+    # Add markers to array
+    marker_array.markers.append(marker)
+    marker_array.markers.append(fill_marker)
+    
+    # Publish marker array
+    river_area_publisher.publish(marker_array)
+    rospy.loginfo("River area visualization published")
+
 # Define state: Initialize
 class Initialize(smach.State):
     def __init__(self):
@@ -399,11 +673,11 @@ class ExploreFrontier(smach.State):
         self.frontier_count = len(msg.markers)
         self.last_frontier_time = rospy.Time.now()
 
-# Define state: Box Position Detection Task
-class DetectBoxPose(smach.State):
+# Define state: Box and Bridge Position Detection Task
+class DetectBoxAndBridgePose(smach.State):
     def __init__(self):      
         smach.State.__init__(self, outcomes=['succeeded', 'failed'], 
-                             output_keys=['box_positions_out'])
+                             output_keys=['box_positions_out', 'bridge_entrance_out'])
 
         # Add box position publisher
         self.box_publisher = rospy.Publisher(
@@ -411,7 +685,13 @@ class DetectBoxPose(smach.State):
             PoseArray, 
             queue_size=10
         )
-
+        
+        # Add bridge entrance publisher
+        self.bridge_entrance_publisher = rospy.Publisher(
+            Config.TOPICS['DETECTED_BRIDGES'], 
+            PoseArray, 
+            queue_size=10
+        )
         # Add bounding box publisher
         self.bounding_box_publisher = rospy.Publisher(
             Config.TOPICS['DETECTED_BOUNDING_BOXES'], 
@@ -422,6 +702,12 @@ class DetectBoxPose(smach.State):
         # Add box generation area publisher
         self.box_area_publisher = rospy.Publisher(
             '/box_area', 
+            MarkerArray, 
+            queue_size=10
+        )
+        
+        self.river_area_publisher = rospy.Publisher(
+            'river_area', 
             MarkerArray, 
             queue_size=10
         )
@@ -436,6 +722,7 @@ class DetectBoxPose(smach.State):
         self.bounding_boxes = []
         self.detection_timeout = Config.TIMEOUTS['BOX_DETECTION']
         self.costmap = None  # Store latest costmap
+        self.bridge_entrance = None
                
     def execute(self, userdata):
         self.costmap_subscriber = rospy.Subscriber(
@@ -488,14 +775,37 @@ class DetectBoxPose(smach.State):
                     # Publish detected box positions
                     self.box_publisher.publish(pose_array)
                     self.bounding_box_publisher.publish(marker_array)
-                    return 'succeeded'
-                # If no boxes detected, try again
+                    
+                    # If no boxes detected, try again
                 else:
                     retry_count += 1
                     rospy.logwarn('No boxes detected from costmap, retrying %d/%d...', retry_count, max_retries)
                     # Wait a while before retrying
                     rospy.sleep(retry_interval)
-            
+                    continue
+                #========== Bridge Detection ==========#
+                # Detect bridge positions from costmap
+                publish_river_area(river_area_publisher=self.river_area_publisher)  # 可视化河流区域
+                bridge_positions, _ = detect_bridge_from_costmap(self.costmap)
+                if bridge_positions and len(bridge_positions) > 0:
+                    # 找到桥梁入口
+                    rospy.loginfo('检测到桥梁，数量: %d', len(bridge_positions))
+
+                    # 创建PoseArray对象
+                    bridge_array = PoseArray()
+                    bridge_array.header.frame_id = "map"
+                    bridge_array.header.stamp = rospy.Time.now()
+                    bridge_array.poses = [pose.pose for pose in bridge_positions]  # 提取每个PoseStamped中的pose
+                    userdata.bridge_entrance_out = bridge_array             
+                    self.bridge_entrance_publisher.publish(bridge_array)
+                    return 'succeeded'
+                # If no boxes or bridge detected, try again
+                else:
+                    retry_count += 1
+                    rospy.logwarn('No bridge detected from costmap, retrying %d/%d...', retry_count, max_retries)
+                    # Wait a while before retrying
+                    rospy.sleep(retry_interval)
+                    continue
             except Exception as e:
                 retry_count += 1
                 rospy.logerr('Box detection error: %s, retrying %d/%d...', str(e), retry_count, max_retries)
@@ -805,7 +1115,8 @@ class NavigateToBoxAndOCR(smach.State):
     def __init__(self):
         smach.State.__init__(self, 
                            outcomes=['succeeded', 'failed'], 
-                           input_keys=['box_positions_in'])
+                           input_keys=['box_positions_in', 'bridge_entrance_in'],
+                           output_keys=['bridge_entrance_out'])
         self.ocr_trigger_publisher = rospy.Publisher(
             Config.TOPICS['OCR_TRIGGER'], 
             Bool, 
@@ -834,6 +1145,9 @@ class NavigateToBoxAndOCR(smach.State):
     def execute(self, userdata):
         # Get box positions from userdata
         self.box_positions = userdata.box_positions_in
+
+        # Just a param transition
+        userdata.bridge_entrance_out = userdata.bridge_entrance_in
 
         wait_timeout = rospy.Duration(10.0)  # Set reasonable timeout
         start_time = rospy.Time.now()
@@ -1103,87 +1417,12 @@ class NavigateToBoxAndOCR(smach.State):
     def ocr_result_callback(self, msg):
         self.ocr_result = msg.data
 
-# Define state: Bridge detection task  
-class DetectBridge(smach.State):
-    def __init__(self):
-        # Add output keys bridge_entrance and bridge_exit
-        smach.State.__init__(self, 
-                            outcomes=['succeeded', 'failed'],
-                            output_keys=['bridge_entrance_out', 'bridge_exit_out'])
-        self.bridge_detection_trigger_publisher = rospy.Publisher(
-            Config.TOPICS['BRIDGE_DETECTION_TRIGGER'], 
-            Bool, 
-            queue_size=10
-        )
-        self.bridge_pose_subscriber = rospy.Subscriber(
-            Config.TOPICS['DETECTED_BRIDGES'], 
-            PoseStamped, 
-            self.bridge_callback
-        )
-        self.bridge_entrance = None  # Bridge entrance coordinates
-        self.detection_complete = False  # Detection complete flag
-        self.detection_timeout = Config.TIMEOUTS['BRIDGE_DETECTION']
-        
-    def execute(self, userdata):
-        # Reset detection status
-        self.bridge_entrance = None
-        self.detection_complete = False
-        
-        rospy.loginfo('Executing bridge detection task...')
-        try:
-            # Publish bridge detection trigger message
-            bridge_detection_trigger_msg = Bool()
-            bridge_detection_trigger_msg.data = True
-            self.bridge_detection_trigger_publisher.publish(bridge_detection_trigger_msg)
-            rospy.loginfo('Bridge detection trigger message published')
-            
-            # Wait for bridge detection result
-            start_time = rospy.Time.now()
-            
-            rate = rospy.Rate(2)  # 2Hz check frequency
-            while not self.detection_complete and (rospy.Time.now() - start_time).to_sec() < self.detection_timeout:
-                rate.sleep()
-                
-            if self.bridge_entrance is None:
-                rospy.logwarn('Bridge not detected or detection timed out')
-                return 'failed'
-            
-            # Calculate exit coordinates (entrance coordinates y value plus offset)
-            bridge_exit = PoseStamped()
-            bridge_exit.header = self.bridge_entrance.header
-            bridge_exit.pose.position.x = self.bridge_entrance.pose.position.x
-            bridge_exit.pose.position.y = self.bridge_entrance.pose.position.y + Config.BRIDGE['EXIT_Y_OFFSET']
-            bridge_exit.pose.orientation = self.bridge_entrance.pose.orientation
-            
-            # Save entrance and exit coordinates to userdata to pass to next state
-            userdata.bridge_entrance_out = self.bridge_entrance
-            userdata.bridge_exit_out = bridge_exit
-            
-            rospy.loginfo('Bridge detection successful')
-            rospy.loginfo('Bridge entrance coordinates: x=%.2f, y=%.2f', 
-                          self.bridge_entrance.pose.position.x, 
-                          self.bridge_entrance.pose.position.y)
-            rospy.loginfo('Bridge exit coordinates: x=%.2f, y=%.2f', 
-                          bridge_exit.pose.position.x, 
-                          bridge_exit.pose.position.y)
-            
-            return 'succeeded'
-            
-        except Exception as e:
-            rospy.logerr('Bridge detection error: %s', str(e))
-            return 'failed'
-    
-    def bridge_callback(self, msg):
-        rospy.loginfo('Bridge detected, position: x=%.2f, y=%.2f', msg.pose.position.x, msg.pose.position.y)
-        self.bridge_entrance = msg
-        self.detection_complete = True
-
 # Define state: Navigate to bridge entrance
 class NavigateToBridgeEntrance(smach.State):
     def __init__(self):
         smach.State.__init__(self, 
                            outcomes=['succeeded', 'failed'],
-                           input_keys=['bridge_entrance_in', 'bridge_exit_in'],
+                           input_keys=['bridge_entrance_in'],
                            output_keys=['bridge_entrance_out', 'bridge_exit_out'])
         self.client = actionlib.SimpleActionClient(
             Config.TOPICS['MOVE_BASE'], 
@@ -1402,50 +1641,46 @@ def main():
 
     # Create top-level state machine
     sm = smach.StateMachine(outcomes=['mission_completed', 'mission_failed'])
-    
+
     # Add states to state machine
     with sm:
         smach.StateMachine.add('INITIALIZE', Initialize(), 
-                               transitions={'initialized':'EXPLORE_FRONTIER', # Temporarily skip exploration
-                                           'failed':'mission_failed'})
+                            transitions={'initialized':'EXPLORE_FRONTIER', # Temporarily skip exploration
+                                        'failed':'mission_failed'})
                 
         smach.StateMachine.add('EXPLORE_FRONTIER', ExploreFrontier(),
                                transitions={'succeeded':'DETECT_BOX_POSE', 
                                            'failed':'mission_failed'})
         
-        smach.StateMachine.add('DETECT_BOX_POSE', DetectBoxPose(), 
-                               transitions={'succeeded':'NAVIGATE_TO_BOX_AND_OCR', 
-                                           'failed':'mission_failed'},
-                               remapping={'box_positions_out':'box_positions'})
+        smach.StateMachine.add('DETECT_BOX_AND_BRIDGE_POSE', DetectBoxAndBridgePose(), 
+                            transitions={'succeeded':'NAVIGATE_TO_BOX_AND_OCR', 
+                                        'failed':'mission_failed'},
+                            remapping={'box_positions_out':'box_positions',
+                                        'bridge_entrance_out':'bridge_entrance'})
         
         smach.StateMachine.add('NAVIGATE_TO_BOX_AND_OCR', NavigateToBoxAndOCR(),
-                               transitions={'succeeded':'DETECT_BRIDGE', 
-                                           'failed':'mission_failed'},
-                               remapping={'box_positions_in':'box_positions'})
-        
-        smach.StateMachine.add('DETECT_BRIDGE', DetectBridge(),
-                               transitions={'succeeded':'NAVIGATE_TO_BRIDGE_ENTRANCE', 
-                                           'failed':'mission_failed'},
-                               remapping={'bridge_entrance_out':'bridge_entrance',
-                                          'bridge_exit_out':'bridge_exit'})
-        
+                            transitions={'succeeded':'NAVIGATE_TO_BRIDGE_ENTRANCE', 
+                                        'failed':'mission_failed'},
+                            remapping={'box_positions_in':'box_positions',
+                                        'bridge_entrance_in':'bridge_entrance',
+                                        'bridge_entrance_out':'bridge_entrance'})
+
         smach.StateMachine.add('NAVIGATE_TO_BRIDGE_ENTRANCE', NavigateToBridgeEntrance(),
-                               transitions={'succeeded':'OPEN_BRIDGE_AND_NAVIGATE', 
-                                           'failed':'mission_failed'},
-                               remapping={'bridge_entrance_in':'bridge_entrance',
-                                          'bridge_entrance_out':'bridge_entrance',
-                                          'bridge_exit_in':'bridge_exit',
-                                          'bridge_exit_out':'bridge_exit'})
+                            transitions={'succeeded':'OPEN_BRIDGE_AND_NAVIGATE', 
+                                        'failed':'mission_failed'},
+                            remapping={'bridge_entrance_in':'bridge_entrance',
+                                        'bridge_entrance_out':'bridge_entrance',
+                                        'bridge_exit_in':'bridge_exit',
+                                        'bridge_exit_out':'bridge_exit'})
         
         smach.StateMachine.add('OPEN_BRIDGE_AND_NAVIGATE', OpenBridgeAndNavigate(),
-                               transitions={'succeeded':'NAVIGATE_TO_GOAL_AND_OCR', 
-                                           'failed':'mission_failed'},
-                               remapping={'bridge_exit_in':'bridge_exit'})
+                            transitions={'succeeded':'NAVIGATE_TO_GOAL_AND_OCR', 
+                                        'failed':'mission_failed'},
+                            remapping={'bridge_exit_in':'bridge_exit'})
         
         smach.StateMachine.add('NAVIGATE_TO_GOAL_AND_OCR', NavigateToGoalAndOCR(),
-                               transitions={'succeeded':'mission_completed', 
-                                           'failed':'mission_failed'})
-    
+                            transitions={'succeeded':'mission_completed', 
+                                        'failed':'mission_failed'})
     # Create state machine visualization tool
     sis = smach_ros.IntrospectionServer('task_coordinator', sm, '/TASK_COORDINATOR')
     sis.start()

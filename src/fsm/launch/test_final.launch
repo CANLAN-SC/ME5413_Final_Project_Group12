@@ -10,7 +10,7 @@
     <include file="$(find ocr)/launch/ocr.launch" />
 
     <!-- Include box_detection launch file -->
-    <include file="$(find box_detection)/launch/box_detection.launch" />
+    <!-- <include file="$(find box_detection)/launch/box_detection.launch" /> -->
 
     <!-- Include frontier_explore launch file -->
     <!-- <include file="$(find frontier_explore)/launch/frontier_explore.launch" /> -->
