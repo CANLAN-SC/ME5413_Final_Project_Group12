@@ -106,7 +106,7 @@ python src/fsm/scripts/fsm.py
 - **状态机控制**: 协调导航、探索、检测等任务的执行顺序
 - **自主探索**: 使用frontier_explore探索未知区域
 - **盒子检测**: 使用DBSCAN聚类算法检测环境中的盒子
-- **OCR识别**: 识别环境中的数字，用于桥梁解锁
+- **OCR识别**: 使用Tesseract-OCR识别环境中的数字，用于桥梁解锁
 - **SLAM**: 使用FAST-LIO进行环境建图和定位
 - **自主导航**: 使用move_base实现机器人的自主导航
 
