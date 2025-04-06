@@ -1,45 +1,45 @@
 # ME5413 Final Project Group12
-## 项目简介
+## Project Introduction
 
-这是ME5413课程的最终项目，实现了具有自主导航、探索、物体检测和OCR功能的机器人系统。此系统基于ROS（机器人操作系统）开发，采用Jackal机器人平台，能够在虚拟环境中完成复杂的导航任务。
+This is the final project of the ME5413 course that implements a robotic system with autonomous navigation, exploration, object detection and OCR capabilities. This system was developed based on ROS (Robot Operating System) and utilizes the Jackal robotics platform, which is capable of performing complex navigation tasks in a virtual environment.
 
-## 系统要求
+## System Requirements
 
 - Ubuntu 18.04/20.04
 - ROS Melodic/Noetic
 - Python 2.7/3.x
-- 库依赖:
+- Library Dependencies:
   - OpenCV
   - pytesseract
   - scikit-learn
   - numpy
   - smach
 
-## 项目结构
+## Project structure
 
-项目主要包含以下模块:
+The project consists of the following modules.
 
-- **fsm**: 有限状态机模块，协调各个任务的执行
-- **ocr**: 光学字符识别模块，用于识别环境中的数字信息
-- **box_detection**: 盒子检测模块，基于点云数据检测并可视化环境中的盒子
-- **frontier_explore**: 前沿探索模块，实现自主探索未知区域
-- **navigation**: 导航模块，负责机器人的路径规划和避障
-- **SLAM**: 使用FAST-LIO进行同步定位与地图构建
+- **fsm**: finite state machine module that coordinates the execution of individual tasks
+- **ocr**: Optical character recognition module for recognizing numeric information in the environment.
+- **box_detection**: Box detection module to detect and visualize boxes in the environment based on point cloud data.
+- **frontier_explore**: Frontier exploration module for autonomous exploration of unknown regions.
+- **navigation**: Navigation module, responsible for robot path planning and obstacle avoidance.
+- **SLAM**: Synchronized localization and map construction using FAST-LIO.
 
-## 安装步骤
+## Installation steps
 
-1. 创建ROS工作空间:
+1. Create a ROS workspace:
 ```bash
 mkdir -p ~/catkin_ws/src
 cd ~/catkin_ws/src
 ```
 
-2. 克隆项目:
+2. Cloning Project:
 ```bash
 git clone https://github.com/CANLAN-SC/ME5413_Final_Project_Group12.git
 ```
 
-3. 安装依赖:
+3. Installation dependencies:
 ```bash
 sudo apt-get update
 sudo apt-get install python-opencv python-numpy ros-$ROS_DISTRO-teleop-twist-keyboard ros-$ROS_DISTRO-gmapping ros-$ROS_DISTRO-move-base
@@ -47,79 +47,78 @@ sudo apt-get install tesseract-ocr libtesseract-dev
 pip install pytesseract scikit-learn
 ```
 
-4. 编译工作空间:
+4. Compilation workspace:
 ```bash
 cd ~/catkin_ws
 catkin_make
 source devel/setup.bash
 ```
 
-## 运行方法
+## operating method
 
-### 1. 启动所有节点
-
+### 1. Start all nodes
 ```bash
 roslaunch fsm final.launch
 ```
-应看到终端重复
+Terminals should be seen to repeat
 ```bash
 [DEBUG] [1743423288.122009188, 605.893000000]: Getting status over the wire.
 ```
-此时仿真环境、rviz、视觉识别、雷达检测、导航、SLAM节点均启动且可以键盘控制仿真小车
+At this time, the simulation environment, rviz, visual recognition, radar detection, navigation, SLAM nodes are activated and can be controlled by the keyboard to simulate the car.
 
-> **注意:** 如果遇到 `/usr/bin/env: 'python\r': No such file or directory` 错误，请安装并使用dos2unix修复:
+> **Note:** If you encounter `/usr/bin/env: 'python\r': No such file or directory` error, please install and fix it with dos2unix:
 > ```bash
 > sudo apt-get install dos2unix
 > dos2unix src/ocr/scripts/before_bridge_ocr.py
 > dos2unix src/ocr/scripts/after_bridge_ocr.py
 > ```
 
-### 2. 加入状态机
+### 2. Adding a state machine
 
-新开终端
+Newly opened terminals
 ```bash
 cd ME5413_Final_Project_Group12
 source devel/setup.bash
 python src/fsm/scripts/fsm.py
 ```
 
-应看到:
+Should see:
 ```bash
 [INFO] [1743423111.980278, 0.000000]: State machine starting in initial state 'INITIALIZE' with userdata: 
         []
 [INFO] [1743423111.982093, 0.000000]: Initializing system...
 [INFO] [1743423111.983973, 0.000000]: State machine transitioning 'INITIALIZE':'initialized'-->'NAVIGATE_TO_GOAL'
-[INFO] [1743423111.985405, 0.000000]: 执行任务三...
+[INFO] [1743423111.985405, 0.000000]: Mission three...
 [INFO] [1743423111.987305, 0.000000]: State machine transitioning 'NAVIGATE_TO_GOAL':'succeeded'-->'TASK_ONE'
-[INFO] [1743423111.988715, 0.000000]: 执行任务一...
-[INFO] [1743423111.990916, 0.000000]: 触发消息已发布
+[INFO] [1743423111.988715, 0.000000]: Mission one...
+[INFO] [1743423111.990916, 0.000000]: Trigger Message Posted
 [INFO] [1743423127.133987, 562.406000]: State machine transitioning 'TASK_ONE':'succeeded'-->'TASK_TWO'
-[INFO] [1743423127.136749, 562.406000]: 执行任务二...
+[INFO] [1743423127.136749, 562.406000]: Mission two...
 [INFO] [1743423127.139615, 562.408000]: State machine transitioning 'TASK_TWO':'succeeded'-->'TASK_THREE'
-[INFO] [1743423127.142591, 562.411000]: 执行任务三...
+[INFO] [1743423127.142591, 562.411000]: Mission three...
 [INFO] [1743423127.144614, 562.412000]: State machine terminating 'TASK_THREE':'succeeded':'mission_completed'
-[INFO] [1743423127.147272, 562.414000]: 状态机执行完毕，结果：mission_completed
+[INFO] [1743423127.147272, 562.414000]: State machine execution completed, result: mission_completed
 ```
 
-## 功能说明
+## Functional Description
 
-- **状态机控制**: 协调导航、探索、检测等任务的执行顺序
-- **自主探索**: 使用frontier_explore探索未知区域
-- **盒子检测**: 使用DBSCAN聚类算法检测环境中的盒子
-- **OCR识别**: 使用Tesseract-OCR识别环境中的数字，用于桥梁解锁
-- **SLAM**: 使用FAST-LIO进行环境建图和定位
-- **自主导航**: 使用move_base实现机器人的自主导航
+- **State Machine Control**: Coordinates the order of execution of tasks such as navigation, exploration, and detection.
+- **Autonomous exploration**: explore unknown areas using frontier_explore
+- **Box detection**: detects boxes in the environment using the DBSCAN clustering algorithm.
+- **OCR Recognition**: use Tesseract-OCR to recognize numbers in the environment for bridge unlocking
+- **SLAM**: Use FAST-LIO for environment mapping and localization
+- **Autonomous Navigation**: using move_base for autonomous robot navigation.
 
-## 系统架构
+## System Architecture
 
-系统由多个模块组成，主要包括:
+The system consists of several modules, mainly including.
 
-1. **主启动文件**：final.launch
-2. **传感处理**：fast_lio进行激光SLAM
-3. **目标检测**：box_detection检测盒子，ocr进行字符识别
-4. **路径规划**：move_base和TEB规划器
-5. **前沿探索**：frontier_explore实现未知区域探索
-6. **任务协调**：fsm状态机协调各任务执行
+1. **Main startup file**: final.launch
+2. **Sensor processing**: fast_lio for laser SLAM
+3. **Target detection**: box_detection for box detection, ocr for character recognition
+4. **Path planning**: move_base and TEB planner
+5. **frontier_explore**: frontier_explore to realize unknown region exploration
+6. **task coordination**: fsm state machine to coordinate the execution of each task
 
 ```mermaid
 graph LR
@@ -291,14 +290,14 @@ graph LR
     class tf_base_link,tf_map,tf_odom,tf_lidar tf;
     class mission_completed,mission_failed outcome;
 ```
-## 疑难杂症
-### 目标位置盒子坐标是怎么来的？
+## Troubleshooting
+### Where do the target position box coordinates come from?
 
-这些盒子坐标是通过查看代码中的计算公式推导出来的。具体计算过程如下：
+These box coordinates are derived by looking at the formula in the code. The calculations are shown below:
 
-#### 源代码中的关键计算
+#### Key calculations in the source code
 
-在`spawnRandomBoxes()`函数中有这样的代码（行197-202）：
+There is code like this in the `spawnRandomBoxes()` function (lines 197-202):
 
 ```cpp
 const double spacing = (MAX_X_COORD - MIN_X_COORD)/(box_labels.size() + 1);
@@ -309,63 +308,62 @@ for (int i = 0; i < box_labels.size(); i++)
 }
 ```
 
-#### 使用的常量值
+#### Constant values used 
 
-文件顶部定义了以下常量：
-- `NUM_BOX_TYPES = 4` （表示使用4个不同类型的盒子）
+The following constants are defined at the top of the file:
+- `NUM_BOX_TYPES = 4` (indicates the use of 4 different types of boxes)
 - `MIN_X_COORD = 2.0`
 - `MAX_X_COORD = 22.0`
 - `Z_COORD = 3.0`
 
-#### 计算过程
+#### Calculation procedure
 
-1. 首先盒子类型数量取`NUM_BOX_TYPES = 4`（在第96-97行对`box_labels`向量裁剪的结果）
-2. 计算间距: `spacing = (MAX_X_COORD - MIN_X_COORD)/(box_labels.size() + 1)`
-   - `spacing = (22.0 - 2.0)/(4 + 1) = 20.0/5 = 4.0`
-3. 然后计算每个盒子的位置: `point_x = spacing*(i + 1) + MIN_X_COORD`
+1. first the number of box types is taken as `NUM_BOX_TYPES = 4` (the result of cropping the `box_labels` vector in lines 96-97)
+2. calculate the spacing: `spacing = (MAX_X_COORD - MIN_X_COORD)/(box_labels.size() + 1)`
+   - `spacing = (22.0 - 2.0)/(4 + 1) = 20.0/5 = 4.0`. 3.
+3. Then calculate the position of each box: `point_x = spacing*(i + 1) + MIN_X_COORD`.
 
-对于4个盒子，分别是：
-- 盒子1 (i=0): `4.0*(0+1) + 2.0 = 6.0`
-- 盒子2 (i=1): `4.0*(1+1) + 2.0 = 10.0`
-- 盒子3 (i=2): `4.0*(2+1) + 2.0 = 14.0`
-- 盒子4 (i=3): `4.0*(3+1) + 2.0 = 18.0`
-
+For each of the 4 boxes:
+- Box 1 (i=0): `4.0*(0+1) + 2.0 = 6.0`
+- box 2 (i=1): `4.0*(1+1) + 2.0 = 10.0`
+- Box 3 (i=2): `4.0*(2+1) + 2.0 = 14.0`
+- Box 4 (i=3): `4.0*(3+1) + 2.0 = 18.0`
 所有盒子的Y坐标都是0.0，Z坐标都是3.0。
 
-### 随机盒子的生成规律是什么？
-通过分析提供的`object_spawner_gz_plugin.cpp`代码，得到探索区域中随机盒子的生成规律。
+### What is the law of generation of random boxes?
+Analyze the provided `object_spawner_gz_plugin.cpp` code to get the generation law of random boxes in the explored region.
 
-#### 盒子生成范围和基本参数
+#### Box generation area and basic parameters
 
-盒子生成的区域被定义为一个矩形区域，范围为：
-- X坐标范围：2.0到22.0 (MIN_X_COORD到MAX_X_COORD)
-- Y坐标范围：11.0到19.0 (MIN_Y_COORD到MAX_Y_COORD)
-- Z坐标固定为：3.0 (Z_COORD)
+The area for box generation is defined as a rectangular area with the range:
+- X coordinate range: 2.0 to 22.0 (MIN_X_COORD to MAX_X_COORD)
+- Y coordinate range: 11.0 to 19.0 (MIN_Y_COORD to MAX_Y_COORD)
+- Z coordinate fixed: 3.0 (Z_COORD)
 
-#### 盒子的类型和数量
+#### Type and number of boxes
 
-代码中定义了几个关键变量来控制盒子的生成：
+There are several key variables defined in the code to control the generation of boxes:
 
-1. `NUM_BOX_TYPES = 4`：将生成4种不同类型的盒子
-2. `box_labels`数组：包含可能的盒子标签（1到9之间的数字）
-3. `box_nums`数组：定义每种类型盒子的数量
+1. `NUM_BOX_TYPES = 4`: 4 different types of boxes will be generated
+2. `box_labels` array: contains the possible box labels (numbers between 1 and 9)
+3. `box_nums` array: defines the number of boxes of each type
 
-#### 生成过程
+#### Generation process
 
-盒子的生成过程如下：
+The generation process of the box is as follows:
 
-1. **随机化处理**：
-   - 使用随机设备对`box_labels`和`box_nums`进行随机洗牌
-   - 选取前`NUM_BOX_TYPES`个元素作为最终的标签和数量
+1. **Randomization process**:
+   - Randomly shuffle `box_labels` and `box_nums` using a randomization device
+   - The first `NUM_BOX_TYPES` elements are selected as the final labels and quantities
 
-2. **随机盒子生成**：
-   - 按照`box_nums`数组定义的每种类型的数量生成随机盒子
-   - 盒子位置在定义的范围内随机选择
-   - 生成时确保盒子之间不会发生碰撞（最小距离为1.2单位）
+2. **Random box generation**:
+   - Generate random boxes according to the number of each type defined in the `box_nums` array
+   - Box positions are randomly selected within a defined range
+   - Generation ensures that there are no collisions between boxes (minimum distance of 1.2 units)
 
-#### 关键规则
+#### Key Rules
 
-1. **避免碰撞**：当在随机位置生成盒子时，会检查与已生成盒子的距离，确保间隔至少1.2个单位
+1. **Collision avoidance**: when a box is generated at a random location, the distance to the generated box is checked to ensure that it is separated by at least 1.2 units
    ```cpp
    for (const auto& pre_point : this->box_points)
    {
@@ -378,21 +376,20 @@ for (int i = 0; i < box_labels.size(); i++)
    }
    ```
 
-2. **标签和数量匹配**：
-   - 每种标签类型在探索区域会生成对应数量的盒子
-   - 例如，如果选择了标签[1,3,5,7]和数量[2,1,3,1]，那么会生成2个标签为1的盒子，1个标签为3的盒子，以此类推
+2. **Labeling and quantity matching**:
+   - Each label type generates a corresponding quantity of boxes in the exploration area
+   - For example, if label [1,3,5,7] and quantity [2,1,3,1] are selected, then 2 boxes labeled 1 will be generated, 1 box labeled 3, and so on
 
-3. **唯一解决方案**：
-   ```cpp
-   // 代码中的注释指出数量数组应该确保只有一个解决方案
+3. **unique solution**:
+   ``cpp
+   // The comment in the code indicates that the quantity array should ensure that there is only one solution
    std::vector<int> box_nums = {1, 2, 3, 4, 5}; // can contain any positive number, but make sure there's only one solution
-   ```
+   ``
 
+## Contributors
 
-## 贡献者
+- Group 12 Members
 
-- Group 12 成员
+## License
 
-## 许可证
-
-LICENSE文件中详细说明
+Detailed in the LICENSE file
