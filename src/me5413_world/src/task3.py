@@ -128,8 +128,15 @@ class RedConeNavigator:
             rospy.loginfo(" Clearing the red cone via /cmd_open_bridge")
             self.bridge_cmd_pub.publish(Bool(data=True))
 
+
             # 3. Move 1.5m past the cone
             self.publish_goal(cone_x - 1.5, cone_y, 3.14)
+            rospy.sleep(2)
+            rospy.loginfo(" Published goal to 1.5m past the cone.")
+
+            self.publish_goal(cone_x - 3.0, cone_y, 3.14)
+            rospy.loginfo(" Published goal to 3.0m past the cone.")
+
 
             # 4. (removed extra forward movement)
 
