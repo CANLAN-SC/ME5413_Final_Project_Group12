@@ -42,7 +42,7 @@ obstacles_layer:
 
   lidar:
     sensor_frame: velodyne  
-    data_type: PointCloud
+    data_type: PointCloud2
     topic: /mid/points
     marking: true
     clearing: true

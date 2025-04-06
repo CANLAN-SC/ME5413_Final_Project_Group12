@@ -124,7 +124,7 @@ class Config:
     }
 
 # Utility functions
-def navigate_to_best_viewing_positions(box_pose):
+def navigate_to_best_viewing_positions(box_pose, client, navigation_timeout, ocr_trigger_publisher, ocr_result, view_positions_publisher):
     """Calculate and navigate to best viewing positions around box"""     
     # Calculate viewing positions
     viewing_positions = calculate_box_viewing_positions(box_pose)
@@ -235,7 +235,7 @@ def calculate_box_viewing_positions(box_pose):
     
     return viewing_positions
 
-def visualize_box_viewing_positions(box_pose, viewing_positions):
+def visualize_box_viewing_positions(box_pose, viewing_positions, view_positions_publisher):
     """Visualize box position best viewing position markers"""
     # Create marker array
     marker_array = MarkerArray()
