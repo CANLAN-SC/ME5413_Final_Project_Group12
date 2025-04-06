@@ -1,6 +1,7 @@
 <launch>
   <!-- Launch file for velodyne16 VLP-16 LiDAR -->
-
+    <node name="teleop_twist_keyboard" pkg="teleop_twist_keyboard" type="teleop_twist_keyboard.py" output="screen" respawn="true"/>
+  
     <arg name="rviz" default="true" />
 
     <rosparam command="load" file="$(find fast_lio)/config/velodyne.yaml" />

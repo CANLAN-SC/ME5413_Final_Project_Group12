@@ -20,10 +20,6 @@
     <param name="repeat_rate" value="10.0"/>
   </node>
   
-  <!-- bag的地址与名称 -->
-  <!-- <arg name="bag_filename" default="$(env HOME)/bagfiles/rslidar-outdoor-gps-notf.bag"/> -->
-  <!-- <arg name="bag_filename" default="$(env HOME)/bagfiles/carto.bag"/> -->
-
   <!-- 使用bag的时间戳 -->
   <param name="/use_sim_time" value="true" />
 
