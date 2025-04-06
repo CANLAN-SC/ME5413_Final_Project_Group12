@@ -109,6 +109,238 @@ class Config:
         'EPS': 5,  # DBSCAN eps parameter, smaller eps creates more, smaller clusters
     }
 
+# Utility functions
+def navigate_to_best_viewing_positions(box_pose):
+    """Calculate and navigate to best viewing positions around box"""     
+    # Calculate viewing positions
+    viewing_positions = calculate_box_viewing_positions(box_pose)
+    
+    # Publish visualization markers
+    visualize_box_viewing_positions(box_pose, viewing_positions)
+            
+    for i, viewing_position in enumerate(viewing_positions):
+
+        # Check if position is near the cliff
+        if viewing_position['position']['x'] < Config.EXPLORE_MAP_BOUNDS['X_MIN'] + 1:
+            rospy.logwarn('Viewing position is too close to the cliff, skipping...')
+            continue
+
+        # Create pose facing the box
+        goal = MoveBaseGoal()
+        goal.target_pose.header.frame_id = "map"
+        goal.target_pose.header.stamp = rospy.Time.now()
+        goal.target_pose.pose.position.x = viewing_position['position']['x']
+        goal.target_pose.pose.position.y = viewing_position['position']['y']
+        goal.target_pose.pose.position.z = 0.0
+        
+        # Convert angle to quaternion
+        goal.target_pose.pose.orientation.z = viewing_position['orientation']['z']
+        goal.target_pose.pose.orientation.w = viewing_position['orientation']['w']
+        
+        rospy.loginfo('Navigating to box viewing position [%d/4]: x=%.2f, y=%.2f, angle=%.2f°', 
+                    i+1, viewing_position['position']['x'],
+                    viewing_position['position']['y'],
+                    math.degrees(viewing_position['angle']))
+                    
+        client.send_goal(goal)
+        
+        # Wait for navigation result, with timeout
+        if not client.wait_for_result(rospy.Duration(navigation_timeout)):
+            rospy.logwarn('Navigation to viewing position timed out, trying next position')
+            continue
+        
+        if client.get_state() != actionlib.GoalStatus.SUCCEEDED:
+            rospy.logwarn('Navigation to viewing position failed, trying next position')
+            continue
+        
+        # After reaching viewing position, trigger OCR
+        ocr_trigger_msg = Bool()
+        ocr_trigger_msg.data = True
+        ocr_trigger_publisher.publish(ocr_trigger_msg)
+        rospy.loginfo('Triggering OCR at viewing position...')
+        rospy.sleep(1.0)  # Give OCR time to process
+
+        # If OCR processing completes, topic /recognized_digit(Int32) will publish result
+        # If recognition succeeds, break loop
+        if ocr_result is not None:  # Modified condition to check for any result
+            rospy.loginfo('OCR processing successful, recognized digit: %d', ocr_result)
+            ocr_result = None  # Reset result for next recognition
+            break
+        else:
+            rospy.logwarn('OCR processing failed, trying next viewing position')
+            continue
+
+def calculate_box_viewing_positions(box_pose):
+    """
+    Calculate best viewing positions around a box
+    
+    Parameters:
+        box_pose: Box pose, containing position and orientation
+        
+    Returns:
+        viewing_positions: List of viewing positions, each a dictionary containing:
+            - position: Viewing position coordinates (x, y, z)
+            - orientation: Viewing position orientation (quaternion)
+            - angle: Viewing angle (radians)
+    """
+    # Define 4 best viewing positions (around the box)
+    viewing_angles = Config.VIEWING_ANGLES  # 0°, 90°, 180°, 270°
+    viewing_distance = Config.VIEWING_DISTANCE  # Best viewing distance
+    
+    viewing_positions = []
+    
+    for i, angle in enumerate(viewing_angles):
+        # Calculate viewing position
+        view_x = box_pose.position.x + viewing_distance * math.cos(angle)
+        view_y = box_pose.position.y + viewing_distance * math.sin(angle)
+        
+        # Calculate angle facing the box
+        dx = box_pose.position.x - view_x
+        dy = box_pose.position.y - view_y
+        facing_angle = math.atan2(dy, dx)  # Correct parameter order for atan2 is (y, x)
+        
+        # Create quaternion for orientation
+        orientation = {
+            'z': math.sin(facing_angle / 2.0),
+            'w': math.cos(facing_angle / 2.0)
+        }
+        
+        # Save viewing position information
+        position = {
+            'x': view_x,
+            'y': view_y,
+            'z': 0.0
+        }
+        
+        # Add to results list
+        viewing_positions.append({
+            'position': position,
+            'orientation': orientation,
+            'angle': facing_angle
+        })
+    
+    return viewing_positions
+
+def visualize_box_viewing_positions(box_pose, viewing_positions):
+    """Visualize box position best viewing position markers"""
+    # Create marker array
+    marker_array = MarkerArray()
+
+    # Create box marker
+    box_marker = Marker()
+    box_marker.header.frame_id = "map"
+    box_marker.header.stamp = rospy.Time.now()
+    box_marker.ns = "box_visualization"
+    box_marker.id = 0
+    box_marker.type = Marker.CUBE
+    box_marker.action = Marker.ADD
+    
+    # Set box position and size
+    box_marker.pose = box_pose
+    box_marker.scale.x = Config.BOX_SIZE
+    box_marker.scale.y = Config.BOX_SIZE
+    box_marker.scale.z = Config.BOX_SIZE
+    
+    # Set box color to red
+    box_marker.color = ColorRGBA(1.0, 0.0, 0.0, 0.0)  # R, G, B, A
+    box_marker.lifetime = rospy.Duration(10.0)  # Display for 10 seconds
+    
+    marker_array.markers.append(box_marker)
+    
+    # Create viewing position markers
+    for i, viewing_position in enumerate(viewing_positions):            
+        # Create viewing position marker
+        view_marker = Marker()
+        view_marker.header.frame_id = "map"
+        view_marker.header.stamp = rospy.Time.now()
+        view_marker.ns = "view_position"
+        view_marker.id = i + 1  # Start from 1, 0 is the box
+        view_marker.type = Marker.ARROW  # Use arrow to represent robot orientation
+        view_marker.action = Marker.ADD
+        
+        # Set viewing position
+        view_marker.pose.position.x = viewing_position['position']['x']
+        view_marker.pose.position.y = viewing_position['position']['y']
+        view_marker.pose.position.z = 0.1  # Slightly above ground
+        
+        # Set orientation (quaternion)
+        view_marker.pose.orientation.z = viewing_position['orientation']['z']
+        view_marker.pose.orientation.w = viewing_position['orientation']['w']
+        
+        # Set arrow size
+        view_marker.scale.x = 0.3  # Arrow length
+        view_marker.scale.y = 0.1  # Arrow width
+        view_marker.scale.z = 0.1  # Arrow height
+        
+        # Set color, use different colors to distinguish four positions
+        colors = [
+            ColorRGBA(0.0, 0.8, 0.0, 0.8),  # Green - 0°
+            ColorRGBA(0.0, 0.0, 0.8, 0.8),  # Blue - 90°
+            ColorRGBA(0.8, 0.8, 0.0, 0.8),  # Yellow - 180°
+            ColorRGBA(0.8, 0.0, 0.8, 0.8)   # Purple - 270°
+        ]
+        view_marker.color = colors[i]
+        view_marker.lifetime = rospy.Duration(10.0)  # Display for 10 seconds
+        
+        marker_array.markers.append(view_marker)
+        
+        # Add connecting line, from viewing position pointing to box
+        line_marker = Marker()
+        line_marker.header.frame_id = "map"
+        line_marker.header.stamp = rospy.Time.now()
+        line_marker.ns = "view_lines"
+        line_marker.id = i + 5  # Start from 5, avoid ID conflict
+        line_marker.type = Marker.LINE_STRIP
+        line_marker.action = Marker.ADD
+        
+        # Add line start and end points
+        start_point = Point()
+        start_point.x = viewing_position['position']['x']
+        start_point.y = viewing_position['position']['y']
+        start_point.z = 0.1
+        
+        end_point = Point()
+        end_point.x = box_pose.position.x
+        end_point.y = box_pose.position.y
+        end_point.z = 0.1
+        
+        line_marker.points = [start_point, end_point]
+        
+        # Set line thickness and color
+        line_marker.scale.x = 0.03  # Line width
+        line_marker.color = ColorRGBA(0.5, 0.5, 0.5, 0.5)  # Semi-transparent gray
+        line_marker.lifetime = rospy.Duration(10.0)  # Display for 10 seconds
+        
+        marker_array.markers.append(line_marker)
+    
+    # Create text markers, showing viewing position numbers
+    for i, viewing_position in enumerate(viewing_positions):
+        # Create text marker
+        text_marker = Marker()
+        text_marker.header.frame_id = "map"
+        text_marker.header.stamp = rospy.Time.now()
+        text_marker.ns = "view_text"
+        text_marker.id = i + 9  # Avoid ID conflict
+        text_marker.type = Marker.TEXT_VIEW_FACING
+        text_marker.action = Marker.ADD
+        
+        # Set text position (slightly higher)
+        text_marker.pose.position.x = viewing_position['position']['x']
+        text_marker.pose.position.y = viewing_position['position']['y']
+        text_marker.pose.position.z = 0.3  # Text height
+        
+        # Set text content and appearance
+        text_marker.text = f"Position {i+1}"
+        text_marker.scale.z = 0.2  # Text size
+        text_marker.color = ColorRGBA(1.0, 1.0, 1.0, 0.8)  # White text
+        text_marker.lifetime = rospy.Duration(10.0)  # Display for 10 seconds
+        
+        marker_array.markers.append(text_marker)
+    
+    # Publish marker array    
+    view_positions_publisher.publish(marker_array)
+    rospy.loginfo("Box and its viewing positions visualization published")
+
 # Define state: Initialize
 class Initialize(smach.State):
     def __init__(self):
@@ -178,6 +410,12 @@ class DetectBoxPose(smach.State):
             PoseArray, 
             queue_size=10
         )
+        # Add box visualization publisher
+        self.box_visualization_publisher = rospy.Publisher(
+            '/box_visualization', 
+            MarkerArray, 
+            queue_size=10
+        )
         # Add box generation area publisher
         self.box_area_publisher = rospy.Publisher(
             '/box_area', 
@@ -240,6 +478,10 @@ class DetectBoxPose(smach.State):
                     
                     # Publish detected box positions
                     self.box_publisher.publish(pose_array)
+
+                    # Visualize box positions in MarkerArray.box
+                    self.visualize_box_positions(pose_array)
+
                     return 'succeeded'
                 # If no boxes detected, try again
                 else:
@@ -472,6 +714,35 @@ class DetectBoxPose(smach.State):
         # Publish marker array
         self.box_area_publisher.publish(marker_array)
         rospy.loginfo("Exploration area visualization published")
+
+    def visualize_box_positions(self, pose_array):
+        """Visualize detected box positions"""
+        # Create marker array
+        marker_array = MarkerArray()
+        
+        # Create box markers
+        for i, pose in enumerate(pose_array.poses):
+            marker = Marker()
+            marker.header.frame_id = "map"
+            marker.header.stamp = rospy.Time.now()
+            marker.ns = "box_positions"
+            marker.id = i
+            marker.type = Marker.CUBE
+            marker.action = Marker.ADD
+            
+            # Set box position and size
+            marker.pose.position.x = pose.position.x
+            marker.pose.position.y = pose.position.y
+            marker.pose.position.z = 0.0
+            marker.pose.orientation = pose.orientation
+            marker.scale.x = Config.BOX_SIZE
+            marker.scale.y = Config.BOX_SIZE
+            marker.scale.z = Config.BOX_SIZE
+            # Set box color to red
+            marker.color = ColorRGBA(1.0, 0.0, 0.0, 1)  # R, G, B, A
+            marker_array.markers.append(marker)
+        # Publish marker array
+        self.box_visualization_publisher.publish(marker_array)
 
 # Define state: Navigate to each box and start OCR
 class NavigateToBoxAndOCR(smach.State):

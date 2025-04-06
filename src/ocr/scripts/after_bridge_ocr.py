@@ -75,7 +75,7 @@ class PostBridgeOCRNode:
 
         # 使用Tesseract OCR识别数字
         # 参数 --psm 10 表示识别单个字符，同时仅允许识别数字0~9
-        custom_config = r'--psm 10 -c tessedit_char_whitelist=0123456789'
+        custom_config = r'--psm 7 -c tessedit_char_whitelist=0123456789'
         ocr_text = pytesseract.image_to_string(roi, config=custom_config)
         ocr_text = ocr_text.strip()
 
