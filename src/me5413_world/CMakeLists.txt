@@ -32,6 +32,7 @@ include_directories(
   include
   ${catkin_INCLUDE_DIRS}
   ${GAZEBO_INCLUDE_DIRS}
+  /usr/include/sdf    # 添加这行
 )
 
 link_directories(${GAZEBO_LIBRARY_DIRS})

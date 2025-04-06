@@ -27,12 +27,19 @@ void ObjectSpawner::Load(physics::WorldPtr _world, sdf::ElementPtr _sdf)
   transport::NodePtr node(new transport::Node());
   node->Init(_world->Name());
   clt_delete_objects_ = nh_.serviceClient<gazebo_msgs::DeleteModel>("/gazebo/delete_model");
+
+  this->world_ = _world;  //11
+
   this->timer_ = nh_.createTimer(ros::Duration(0.1), &ObjectSpawner::timerCallback, this);
   this->pub_factory_ = node->Advertise<msgs::Factory>("~/factory");
   this->sub_respawn_objects_ = nh_.subscribe("/rviz_panel/respawn_objects", 1, &ObjectSpawner::respawnCmdCallback, this);
   this->sub_cmd_open_bridge_ = nh_.subscribe("/cmd_open_bridge", 1, &ObjectSpawner::openBridgeCallback, this);
   this->pub_rviz_markers_ = nh_.advertise<visualization_msgs::MarkerArray>("/gazebo/ground_truth/box_markers", 0);
   bridge_open_called_ = false;
+
+  // ✅ 加这一行：注册 OnUpdate() 回调
+  this->update_connection_ = event::Events::ConnectWorldUpdateBegin(
+      std::bind(&ObjectSpawner::OnUpdate, this));
   return;
 };
 
@@ -109,7 +116,7 @@ void ObjectSpawner::spawnRandomBoxes()
   }
 
   // Generate random box points
-  // visualization_msgs::MarkerArray text_markers_msg;
+  visualization_msgs::MarkerArray text_markers_msg;
   for (int i = 0; i < boxes.size(); i++)
   {
     ignition::math::Vector3d point;
@@ -144,47 +151,62 @@ void ObjectSpawner::spawnRandomBoxes()
     this->pub_factory_->Publish(box_msg);
     ROS_DEBUG_STREAM("Generated " << box_name << " at " << point);
     common::Time::MSleep(500);
-    // // Publish rviz marker for this box
-    // visualization_msgs::Marker box_marker;
-    // box_marker.header.frame_id = "world";
-    // box_marker.header.stamp = ros::Time();
-    // box_marker.ns = "gazebo";
-    // box_marker.id = 2*i;
-    // box_marker.type = visualization_msgs::Marker::CUBE;
-    // box_marker.action = visualization_msgs::Marker::ADD;
-    // box_marker.frame_locked = true;
-    // box_marker.lifetime = ros::Duration(0.2);
-    // box_marker.pose.position.x = point.X();
-    // box_marker.pose.position.y = point.Y();
-    // box_marker.pose.position.z = point.Z();
-    // box_marker.pose.orientation.x = 0.0;
-    // box_marker.pose.orientation.y = 0.0;
-    // box_marker.pose.orientation.z = 0.0;
-    // box_marker.pose.orientation.w = 1.0;
-    // box_marker.scale.x = 0.8;
-    // box_marker.scale.y = 0.8;
-    // box_marker.scale.z = 0.8;
-    // box_marker.color.a = 0.7;
-    // box_marker.color.r = static_cast<double>(std::rand()) / RAND_MAX * 0.5 + 0.25;
-    // box_marker.color.g = static_cast<double>(std::rand()) / RAND_MAX * 0.5 + 0.25;
-    // box_marker.color.b = static_cast<double>(std::rand()) / RAND_MAX * 0.5 + 0.25;
-    // this->box_markers_msg_.markers.emplace_back(box_marker);
+    // Publish rviz marker for this box
+    visualization_msgs::Marker box_marker;
+    box_marker.header.frame_id = "world";
+    box_marker.header.stamp = ros::Time();
+    box_marker.ns = "gazebo";
+    box_marker.id = 2*i;
+    box_marker.type = visualization_msgs::Marker::CUBE;
+    box_marker.action = visualization_msgs::Marker::ADD;
+    box_marker.frame_locked = true;
+    box_marker.lifetime = ros::Duration(0.2);
+    box_marker.pose.position.x = point.X();
+    box_marker.pose.position.y = point.Y();
+    box_marker.pose.position.z = point.Z();
+    box_marker.pose.orientation.x = 0.0;
+    box_marker.pose.orientation.y = 0.0;
+    box_marker.pose.orientation.z = 0.0;
+    box_marker.pose.orientation.w = 1.0;
+    box_marker.scale.x = 0.8;
+    box_marker.scale.y = 0.8;
+    box_marker.scale.z = 0.8;
+    box_marker.color.a = 0.7;
+    box_marker.color.r = static_cast<double>(std::rand()) / RAND_MAX * 0.5 + 0.25;
+    box_marker.color.g = static_cast<double>(std::rand()) / RAND_MAX * 0.5 + 0.25;
+    box_marker.color.b = static_cast<double>(std::rand()) / RAND_MAX * 0.5 + 0.25;
+    this->box_markers_msg_.markers.emplace_back(box_marker);
 
-    // visualization_msgs::Marker text_marker = box_marker;
-    // text_marker.id = 2*i + 1;
-    // text_marker.type = visualization_msgs::Marker::TEXT_VIEW_FACING;
-    // text_marker.text = std::to_string(boxes[i][0]);
-    // text_marker.pose.position.z += 0.5;
-    // text_marker.scale.z = 0.5;
-    // text_marker.color.a = 0.8;
-    // text_marker.color.r = 0.0;
-    // text_marker.color.g = 0.0;
-    // text_marker.color.b = 0.0;
-    // text_markers_msg.markers.emplace_back(text_marker);
+    visualization_msgs::Marker text_marker = box_marker;
+    text_marker.id = 2*i + 1;
+    text_marker.type = visualization_msgs::Marker::TEXT_VIEW_FACING;
+    text_marker.text = std::to_string(boxes[i][0]);
+    text_marker.pose.position.z += 0.5;
+    text_marker.scale.z = 0.5;
+    text_marker.color.a = 0.8;
+    text_marker.color.r = 0.0;
+    text_marker.color.g = 0.0;
+    text_marker.color.b = 0.0;
+    text_markers_msg.markers.emplace_back(text_marker);
   }
 
-  // // merge the two marker arrays
-  // this->box_markers_msg_.markers.insert(this->box_markers_msg_.markers.end(), text_markers_msg.markers.begin(), text_markers_msg.markers.end());
+  // merge the two marker arrays
+  this->box_markers_msg_.markers.insert(this->box_markers_msg_.markers.end(), text_markers_msg.markers.begin(), text_markers_msg.markers.end());
+  
+  // 添加一个固定位置的盒子 (22,19)
+  // ignition::math::Vector3d fixed_point(21.0, 19.0, Z_COORD);
+  // this->box_points.push_back(fixed_point);
+  
+  // // 发布位于固定位置的盒子模型
+  // msgs::Factory fixed_box_msg;
+  // // 使用标签列表中的第一个标签或指定一个固定标签
+  // const std::string fixed_box_name = "number" + std::to_string(box_labels[0]);
+  // fixed_box_msg.set_sdf_filename("model://" + fixed_box_name);
+  // this->box_names.push_back(fixed_box_name + "_fixed");
+  // msgs::Set(fixed_box_msg.mutable_pose(), ignition::math::Pose3d(fixed_point, ignition::math::Quaterniond(0, 0, 0)));
+  // this->pub_factory_->Publish(fixed_box_msg);
+  // ROS_INFO_STREAM("Generated fixed " << fixed_box_name << " at (" << fixed_point.X() << ", " << fixed_point.Y() << ", " << fixed_point.Z() << ")");
+  // common::Time::MSleep(500);
 
   return;
 };
@@ -282,29 +304,77 @@ void ObjectSpawner::respawnCmdCallback(const std_msgs::Int16::ConstPtr& respawn_
   return;
 };
 
+// void ObjectSpawner::openBridgeCallback(const std_msgs::Bool::ConstPtr& open_bridge_msg)
+// {
+//   const bool open_bridge = open_bridge_msg->data;
+//   if (open_bridge == true)
+//   {
+//     if (bridge_open_called_ == false)
+//     {
+//       bridge_open_called_ = true;
+//       deleteCone();
+//       ROS_INFO_STREAM("Bridge will now open for 10s");
+//       common::Time::Sleep(10);
+//       spawnCone();
+//       ROS_INFO_STREAM("Bridge is now closed, cannot be opened again");
+//     }
+//     else
+//     {
+//       ROS_INFO_STREAM("Bridge has been opened before, cannot be opened again");
+//     }
+//   }
+//   else
+//   {
+//     ROS_INFO_STREAM("Bridge open command is false, nothing to be done");
+//   }
+// }
+
+// void ObjectSpawner::openBridgeCallback(const std_msgs::Bool::ConstPtr& open_bridge_msg)
+// {
+//   const bool open_bridge = open_bridge_msg->data;
+
+//   if (open_bridge && !obstacle_hidden_)
+//   {
+//     deleteCone();  // 障碍物消失
+//     disappear_time_ = this->world_->SimTime();  // 仿真时间打点
+//     obstacle_hidden_ = true;
+//     ROS_INFO_STREAM("Bridge opened. Obstacle hidden for 10 sim seconds.");
+//   }
+// }
+
 void ObjectSpawner::openBridgeCallback(const std_msgs::Bool::ConstPtr& open_bridge_msg)
 {
   const bool open_bridge = open_bridge_msg->data;
-  if (open_bridge == true)
+
+  if (open_bridge)
   {
-    if (bridge_open_called_ == false)
-    {
-      bridge_open_called_ = true;
-      deleteCone();
-      ROS_INFO_STREAM("Bridge will now open for 10s");
-      common::Time::Sleep(10);
-      spawnCone();
-      ROS_INFO_STREAM("Bridge is now closed, cannot be opened again");
-    }
-    else
-    {
-      ROS_INFO_STREAM("Bridge has been opened before, cannot be opened again");
-    }
+    // 无论当前状态如何，都重新执行一次“开启桥”操作
+    deleteCone();  // 立刻清除障碍物
+    disappear_time_ = this->world_->SimTime();  // 记录当前仿真时间
+    obstacle_hidden_ = true;  // 开启10秒倒计时
+    ROS_INFO_STREAM("Bridge command received. Obstacle hidden for 10 sim seconds.");
   }
   else
   {
-    ROS_INFO_STREAM("Bridge open command is false, nothing to be done");
+    ROS_INFO_STREAM("Received false on /cmd_open_bridge. Ignoring.");
   }
 }
+
+
+
+void ObjectSpawner::OnUpdate()
+{
+  if (obstacle_hidden_)
+  {
+    gazebo::common::Time now = this->world_->SimTime();
+    if ((now - disappear_time_).Double() > 10.0)
+    {
+      spawnCone();  // 恢复障碍物
+      obstacle_hidden_ = false;
+      ROS_INFO_STREAM("10 sim seconds passed. Obstacle respawned.");
+    }
+  }
+}
+
 
 } // namespace gazebo

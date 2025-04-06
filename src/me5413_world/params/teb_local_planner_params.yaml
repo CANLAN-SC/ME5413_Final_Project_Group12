@@ -4,7 +4,7 @@ TebLocalPlannerROS:
   map_frame: map
 
   # Robot Configuration Parameters
-  max_vel_x: 5.0
+  max_vel_x: 0.5
   max_vel_x_backwards: 0.3
   max_vel_theta: 2.0
   acc_lim_x: 5.0
@@ -28,6 +28,9 @@ TebLocalPlannerROS:
   costmap_obstacles_behind_robot_dist: 1.0
   obstacle_poses_affected: 20
   legacy_obstacle_association: false
+
+  #obstacle_association_force_inclusion_factor: 1.5 ##新添加
+
 
   # Optimization Parameters
   no_inner_iterations: 5
