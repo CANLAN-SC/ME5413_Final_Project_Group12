@@ -15,13 +15,13 @@ rosservice call /finish_trajectory 0
 
 2.2 create a map.pbstream file
 ```
-rosservice call /write_state "{filename: '${HOME}/map.pbstream'}"
+rosservice call /write_state "{filename: '${HOME}/ME5413_Final_Project/src/me5413_world/maps/map_2d.pbstream'}"
 ```
 
 2.3 Convert map.pbstream files to map.yaml & map.pgm files
 ```
 rosrun cartographer_ros cartographer_pbstream_to_ros_map \
-    -map_filestem=${HOME}/Downloads/map \
-    -pbstream_filename=${HOME}/Downloads/map.pbstream \
+    -map_filestem=${HOME}/ME5413_Final_Project/src/me5413_world/maps/map_2d \
+    -pbstream_filename=${HOME}/ME5413_Final_Project/src/me5413_world/maps/map_2d.pbstream \
     -resolution=0.05
 ```
