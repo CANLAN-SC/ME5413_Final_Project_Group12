@@ -34,6 +34,7 @@ class Config:
         'BOX_DETECTION_TRIGGER': '/box_detection_trigger',
         'DETECTED_BOXES': '/detected_boxes',
         'DETECTED_BOUNDING_BOXES': '/detected_bounding_boxes',
+        'DETECTED_BOX_NUMBERS': '/detected_box_numbers',
         'BRIDGE_DETECTION_TRIGGER': '/bridge_detection_trigger',
         'DETECTED_BRIDGES': '/detected_bridges',
         'OCR_TRIGGER': '/ocr_trigger',
@@ -433,7 +434,7 @@ class DetectBoxPose(smach.State):
         #     queue_size=50
         # )
         self.box_positions = []  # For storing detected box positions
-        self.bounding_boxes = []
+        self.bounding_boxes = []  # For storing detected bounding boxes
         self.detection_timeout = Config.TIMEOUTS['BOX_DETECTION']
         self.costmap = None  # Store latest costmap
                
@@ -481,7 +482,7 @@ class DetectBoxPose(smach.State):
                     pose_array.poses = [box.pose for box in costmap_boxes]
                     # Create MarkerArray from bounding boxes
                     marker_array = MarkerArray()
-                    marker_array.markers = [bounding_box for bounding_box in costmap_bounding_boxes]
+                    marker_array.markers = costmap_bounding_boxes
                     userdata.box_positions_out = pose_array
                     rospy.loginfo('Successfully detected %d boxes from costmap', len(costmap_boxes))
                     
@@ -816,20 +817,26 @@ class NavigateToBoxAndOCR(smach.State):
             Int32, 
             self.ocr_result_callback
         )
+        self.ocr_result_publisher = rospy.Publisher(
+            Config.TOPICS['DETECTED_BOX_NUMBERS'], 
+            MarkerArray, 
+            queue_size=10
+        )
         self.client = actionlib.SimpleActionClient(
             Config.TOPICS['MOVE_BASE'], 
             MoveBaseAction
         )
         self.view_positions_publisher = rospy.Publisher(
-                '/box_view_positions', 
-                MarkerArray, 
-                queue_size=10
+            '/box_view_positions', 
+            MarkerArray, 
+            queue_size=10
             )
         self.client.wait_for_server()
         rospy.loginfo('Navigation client connected')
         self.navigation_timeout = Config.TIMEOUTS['NAVIGATION']
         self.ocr_timeout = Config.TIMEOUTS['OCR_PROCESSING']
         self.ocr_result = None  # For storing OCR result
+        self.box_numbers = []   # For storing all numbers detected by OCR
   
     def execute(self, userdata):
         # Get box positions from userdata
@@ -848,15 +855,19 @@ class NavigateToBoxAndOCR(smach.State):
 
         rospy.loginfo('Navigating to %d boxes and starting OCR...', len(self.box_positions.poses))
         
-        # Create PoseArray to store extracted poses
-        pose_array = PoseArray()
-        pose_array.header.frame_id = "map"
-        pose_array.header.stamp = rospy.Time.now()
+        # # Create PoseArray to store extracted poses
+        # pose_array = PoseArray()
+        # pose_array.header.frame_id = "map"
+        # pose_array.header.stamp = rospy.Time.now()
 
         # Navigate and perform OCR for each box
         for i, pose in enumerate(self.box_positions.poses):
             try:
                 self.navigate_to_best_viewing_positions(pose)
+                marker_array = MarkerArray()
+                marker_array.markers = self.box_numbers
+                # Publish detected box_numbers
+                self.ocr_result_publisher.publish(marker_array)
                 
             except Exception as e:
                 rospy.logerr('Error processing box: %s', str(e))
@@ -923,7 +934,26 @@ class NavigateToBoxAndOCR(smach.State):
             # If recognition succeeds, break loop
             if self.ocr_result is not None:  # Modified condition to check for any result
                 rospy.loginfo('OCR processing successful, recognized digit: %d', self.ocr_result)
+                
+                # Create a text marker to display bounding box size
+                print('number detected:', self.ocr_result)
+                text_marker = Marker()
+                text_marker.header.frame_id = "map"
+                text_marker.header.stamp = rospy.Time.now()
+                text_marker.ns = "box_number"
+                text_marker.id = self.ocr_result  # Avoid ID conflict
+                text_marker.type = Marker.TEXT_VIEW_FACING
+                text_marker.action = Marker.ADD
+                text_marker.pose.position.x = box_pose.position.x
+                text_marker.pose.position.y = box_pose.position.y
+                text_marker.pose.position.z = 0.1  # slightly above the map
+                text_marker.text = f"{self.ocr_result}"
+                text_marker.scale.z = 1.0  # Text size
+                text_marker.color = ColorRGBA(1.0, 1.0, 1.0, 0.6)  # R, G, B, A
+                self.box_numbers.append(text_marker)
+
                 self.ocr_result = None  # Reset result for next recognition
+
                 break
             else:
                 rospy.logwarn('OCR processing failed, trying next viewing position')
