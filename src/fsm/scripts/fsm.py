@@ -1649,7 +1649,7 @@ def main():
                                         'failed':'mission_failed'})
                 
         smach.StateMachine.add('EXPLORE_FRONTIER', ExploreFrontier(),
-                               transitions={'succeeded':'DETECT_BOX_POSE', 
+                               transitions={'succeeded':'DETECT_BOX_AND_BRIDGE_POSE', 
                                            'failed':'mission_failed'})
         
         smach.StateMachine.add('DETECT_BOX_AND_BRIDGE_POSE', DetectBoxAndBridgePose(), 
