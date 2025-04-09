@@ -81,10 +81,10 @@ class PreBridgeOCRNode:
         # 1. 转为灰度图
         gray = cv2.cvtColor(cv_image, cv2.COLOR_BGR2GRAY)
         # 2. 自适应阈值二值化，反色处理使数字区域突出
-        thresh = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
-                                       cv2.THRESH_BINARY_INV, 11, 2)
-        h, w = thresh.shape
-        roi = thresh[int(0.21*h):int(0.79*h), int(0.34*w):int(0.66*w)]
+        # thresh = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+        #                                cv2.THRESH_BINARY_INV, 11, 2)
+        h, w = gray.shape
+        roi = gray[int(0.21*h):int(0.79*h), int(0.34*w):int(0.66*w)]
         
         # 显示ROI便于调试
         #cv2.imshow("OCR ROI", roi)

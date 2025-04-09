@@ -1,10 +1,10 @@
 <launch>
     <!-- Include world and manual control launch file from me5413_world-->
-    <include file="$(find me5413_world)/launch/world.launch" />
+    <include file="$(find me5413_world)/launch/world_test.launch" />
     <include file="$(find me5413_world)/launch/manual.launch" />
     
     <!-- Include navigation launch file -->
-    <include file="$(find navigation)/launch/navigation.launch" />
+    <include file="$(find navigation)/launch/navigation_test.launch" />
     
     <!-- Include ocr launch file -->
     <include file="$(find ocr)/launch/ocr.launch" />

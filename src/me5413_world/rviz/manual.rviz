@@ -6,11 +6,7 @@ Panels:
       Expanded:
         - /Global Options1
         - /Status1
-        - /Sensing1
-        - /Map1
-        - /PoseArray2
-        - /MarkerArray3
-        - /MarkerArray4
+        - /MarkerArray7
       Splitter Ratio: 0.5117647051811218
     Tree Height: 777
   - Class: rviz/Selection
@@ -264,8 +260,8 @@ Visualization Manager:
         - Alpha: 1
           Autocompute Intensity Bounds: true
           Autocompute Value Bounds:
-            Max Value: 17.998477935791016
-            Min Value: 7.295698642730713
+            Max Value: 23.031232833862305
+            Min Value: 20.115875244140625
             Value: true
           Axis: X
           Channel Name: intensity
@@ -292,8 +288,8 @@ Visualization Manager:
         - Alpha: 1
           Autocompute Intensity Bounds: true
           Autocompute Value Bounds:
-            Max Value: 2.336987018585205
-            Min Value: -0.6322163939476013
+            Max Value: 2.3371376991271973
+            Min Value: -0.07008546590805054
             Value: true
           Axis: Z
           Channel Name: intensity
@@ -362,30 +358,13 @@ Visualization Manager:
         frontiers: true
       Queue Size: 100
       Value: true
-    - Alpha: 1
-      Arrow Length: 0.30000001192092896
-      Axes Length: 0.30000001192092896
-      Axes Radius: 0.009999999776482582
-      Class: rviz/PoseArray
-      Color: 255; 25; 0
-      Enabled: true
-      Head Length: 0.07000000029802322
-      Head Radius: 0.029999999329447746
-      Name: PoseArray
-      Queue Size: 10
-      Shaft Length: 0.23000000417232513
-      Shaft Radius: 0.009999999776482582
-      Shape: Arrow (Flat)
-      Topic: /detected_boxes
-      Unreliable: false
-      Value: true
     - Class: rviz/MarkerArray
       Enabled: true
       Marker Topic: /box_area
       Name: MarkerArray
       Namespaces:
         explore_area: true
-        explore_area_fill: true
+        river_fill: true
       Queue Size: 100
       Value: true
     - Class: rviz/MarkerArray
@@ -393,10 +372,32 @@ Visualization Manager:
       Marker Topic: /box_view_positions
       Name: MarkerArray
       Namespaces:
-        box_visualization: true
-        view_lines: true
-        view_position: true
-        view_text: true
+        {}
+      Queue Size: 100
+      Value: true
+    - Class: rviz/MarkerArray
+      Enabled: true
+      Marker Topic: /detected_bounding_boxes
+      Name: MarkerArray
+      Namespaces:
+        bounding_boxes: true
+      Queue Size: 100
+      Value: true
+    - Class: rviz/MarkerArray
+      Enabled: true
+      Marker Topic: /river_area
+      Name: MarkerArray
+      Namespaces:
+        explore_area: true
+        river_fill: true
+      Queue Size: 100
+      Value: true
+    - Class: rviz/MarkerArray
+      Enabled: true
+      Marker Topic: /box_view_positions
+      Name: MarkerArray
+      Namespaces:
+        {}
       Queue Size: 100
       Value: true
   Enabled: true
