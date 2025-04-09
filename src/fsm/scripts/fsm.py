@@ -152,11 +152,11 @@ class DetectBoxPoseNavigateAndOCR(smach.State):
                     userdata.costmap_out = self.costmap  # Pass costmap to next state
                 
                 # Visualize box area
-                visualize_area(Config.EXPLORE_MAP_BOUNDS['X_MIN'],
-                               Config.EXPLORE_MAP_BOUNDS['X_MAX'],
-                               Config.EXPLORE_MAP_BOUNDS['Y_MIN'],
-                               Config.EXPLORE_MAP_BOUNDS['Y_MAX'],
-                               self.box_area_publisher,
+                visualize_area(x_min=Config.EXPLORE_MAP_BOUNDS['X_MIN'],
+                               y_min=Config.EXPLORE_MAP_BOUNDS['Y_MIN'],
+                               x_max=Config.EXPLORE_MAP_BOUNDS['X_MAX'],
+                               y_max=Config.EXPLORE_MAP_BOUNDS['Y_MAX'],
+                               area_publisher=self.box_area_publisher,
                                description='box_area')
                 rospy.loginfo('Using costmap for box detection...')
                 costmap_boxes, costmap_bounding_boxes = detect_object_from_costmap(self.costmap, eps=Config.CLUSTERING['EPS'],
@@ -173,10 +173,6 @@ class DetectBoxPoseNavigateAndOCR(smach.State):
                                                                                  obstacle_threshold=Config.OBSTACLE_THRESHOLD)
                 # If boxes are detected, go and ocr
                 if costmap_boxes:
-                    # Publish boxes visualization
-                    # TODO: can delete
-                    self.bounding_box_publisher.publish(costmap_bounding_boxes)
-
                     for i, pose in enumerate(costmap_boxes):
                         try:                            
                             navigate_to_best_viewing_positions_and_visualize_and_ocr(Config.VIEWING_ANGLES, 
@@ -228,6 +224,7 @@ class DetectBoxPoseNavigateAndOCR(smach.State):
     def ocr_result_callback(self, msg):
         global latest_ocr_result
         latest_ocr_result = msg.data
+        rospy.loginfo('Received OCR result: %d', latest_ocr_result)
 
 # Define state: Bridge Position Detection Task
 class DetectBridgeAndToEntrance(smach.State):
@@ -263,7 +260,15 @@ class DetectBridgeAndToEntrance(smach.State):
                
     def execute(self, userdata):
         # Get costmap from previous state
-        self.costmap = userdata.costmap_in
+        # self.costmap = userdata.costmap_in
+
+        # Test: subscribe to costmap topic
+        self.costmap_subscriber = rospy.Subscriber(
+            Config.TOPICS['BOX_EXTRACTION'], 
+            OccupancyGrid, 
+            self.costmap_callback,
+            queue_size=50
+        )
         
         rospy.loginfo('Starting bridge detection task...')
         
@@ -283,8 +288,8 @@ class DetectBridgeAndToEntrance(smach.State):
                 
                 # Visualize river area
                 visualize_area(Config.RIVER_BOUNDS['X_MIN'],
+                               Config.RIVER_BOUNDS['Y_MIN'],
                                 Config.RIVER_BOUNDS['X_MAX'],
-                                Config.RIVER_BOUNDS['Y_MIN'],
                                 Config.RIVER_BOUNDS['Y_MAX'],
                                 self.river_area_publisher,
                                 description='river_area')
@@ -317,17 +322,14 @@ class DetectBridgeAndToEntrance(smach.State):
                         bridge_position.position.x = sum(p.position.x for p in bridge_positions) / len(bridge_positions)
                         bridge_position.position.y = sum(p.position.y for p in bridge_positions) / len(bridge_positions)
                         bridge_position.position.z = 0.0
-
-                        # w=0.0, z=1.0 towards the bridge
-                        bridge_position.orientation.w = 0.0
-                        bridge_position.orientation.z = 1.0
                     
                     # Create bridge entrance pose
                     bridge_entrance = Pose()
                     bridge_entrance.position.x = Config.BRIDGE_X
                     bridge_entrance.position.y = bridge_position.position.y
                     bridge_entrance.position.z = bridge_position.position.z
-                    bridge_entrance.orientation = bridge_position.orientation
+                    bridge_entrance.orientation.w = 0.0
+                    bridge_entrance.orientation.z = 1.0
 
                     # Send bridge entrance pose to move_base
                     navigation_result = navigate_to_goal(self.client,
@@ -376,10 +378,13 @@ class OpenBridgeAndCross(smach.State):
 
     def execute(self, userdata):        
         try:
-            # Send command to open bridge
+            # Send command to open bridge multiple times
             open_bridge_msg = Bool()
             open_bridge_msg.data = True
-            self.open_bridge_publisher.publish(open_bridge_msg)
+            for _ in range(3):
+                self.open_bridge_publisher.publish(open_bridge_msg)
+                rospy.loginfo('Bridge open command sent')
+                rospy.sleep(0.1)  # Wait for a second before sending the next command
             rospy.loginfo('Bridge open command sent')
             
             # Use cmd_vel to move forward for 5 seconds
@@ -429,7 +434,7 @@ class NavigateToGoalAndOCR(smach.State):
         )
 
         self.view_positions_publisher = rospy.Publisher(
-            '/box_view_positions', 
+            '/goal_view_positions', 
             MarkerArray, 
             queue_size=10
         )
@@ -465,16 +470,16 @@ class NavigateToGoalAndOCR(smach.State):
                 navigate_to_best_viewing_positions_and_visualize_and_ocr(
                     Config.VIEWING_ANGLES, 
                     Config.VIEWING_DISTANCE,
-                    goal_position,  # 现在传入的是 Pose 对象
+                    goal_position,  # Pose 
                     Config.BOX_SIZE,
-                    Config.GOAL_MAP_BOUNDS['X_MIN'], 
-                    Config.GOAL_MAP_BOUNDS['Y_MIN'],
-                    Config.GOAL_MAP_BOUNDS['X_MAX'], 
-                    Config.GOAL_MAP_BOUNDS['Y_MAX'],
-                    self.client,
-                    self.navigation_timeout,
-                    self.ocr_trigger_publisher, 
-                    self.view_positions_publisher)
+                    x_min=Config.GOAL_MAP_BOUNDS['X_MIN'], 
+                    y_min=Config.GOAL_MAP_BOUNDS['Y_MIN'],
+                    x_max=Config.GOAL_MAP_BOUNDS['X_MAX'], 
+                    y_max=Config.GOAL_MAP_BOUNDS['Y_MAX'],
+                    client=self.client,
+                    navigation_timeout=self.navigation_timeout,
+                    ocr_trigger_publisher=self.ocr_trigger_publisher, 
+                    view_positions_publisher=self.view_positions_publisher)
 
                 # 等待 OCR 处理完成的代码保持不变
                 wait_start_time = rospy.Time.now()
@@ -519,14 +524,14 @@ def main():
         # Add Initialize state - the entry point of the state machine
         smach.StateMachine.add('INITIALIZE',
                             Initialize(),
-                            transitions={'initialized': 'EXPLORE_FRONTIER',
+                            transitions={'initialized': 'DETECT_BOX_POSE',
                                             'failed': 'mission_failed'})
         
         # Add Frontier Exploration state - robot explores the environment to build a map
-        smach.StateMachine.add('EXPLORE_FRONTIER',
-                            ExploreFrontier(),
-                            transitions={'succeeded': 'DETECT_BOX_POSE',
-                                            'failed': 'mission_failed'})
+        # smach.StateMachine.add('EXPLORE_FRONTIER',
+        #                     ExploreFrontier(),
+        #                     transitions={'succeeded': 'DETECT_BOX_POSE',
+        #                                     'failed': 'mission_failed'})
         
         # Add Box Detection state - detect boxes in the environment and try OCR
         smach.StateMachine.add('DETECT_BOX_POSE',
@@ -553,6 +558,7 @@ def main():
                             NavigateToGoalAndOCR(),
                             transitions={'succeeded': 'mission_completed',
                                         'failed': 'mission_failed'})
+        
         sis = smach_ros.IntrospectionServer('task_coordinator', sm, '/TASK_COORDINATOR')
         sis.start()
         

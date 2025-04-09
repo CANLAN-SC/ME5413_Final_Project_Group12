@@ -253,7 +253,7 @@ def visualize_area(x_min, y_min, x_max, y_max, area_publisher, description):
     
     # Top left
     p4 = Point()
-    p4.x = y_max
+    p4.x = x_min
     p4.y = y_max
     p4.z = 0.05
     points.append(p4)
@@ -516,7 +516,7 @@ def navigate_to_best_viewing_positions_and_visualize_and_ocr(viewing_angles, vie
         ocr_trigger_msg.data = True
         ocr_trigger_publisher.publish(ocr_trigger_msg)
         rospy.loginfo('Triggering OCR at viewing position...')
-        rospy.sleep(1.0)  # Give OCR time to process
+        rospy.sleep(2.0)  # Give OCR time to process
 
         # Check if OCR result is available
         if latest_ocr_result is not None:

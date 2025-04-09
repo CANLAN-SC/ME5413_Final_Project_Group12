@@ -35,9 +35,9 @@ class Config:
         'EXPLORE': 20.0,            # Exploration task timeout
         'BOX_DETECTION': 3.0,       # Box detection timeout
         'BRIDGE_DETECTION': 15.0,    # Bridge detection timeout
-        'NAVIGATION': 60.0,          # Navigation timeout
-        'OCR_PROCESSING': 2.0,       # OCR processing timeout
-        'BRIDGE_OPEN': 10.0,          # Bridge opening wait time
+        'NAVIGATION': 30.0,          # Navigation timeout
+        'OCR_PROCESSING': 1.0,       # OCR processing timeout
+        'BRIDGE_OPEN': 5.0,          # Bridge opening wait time
     }
 
     # Obstacle threshold
@@ -76,13 +76,13 @@ class Config:
     # Bridge related settings
     BRIDGE_LENGTH = 5.0  # Bridge length (meters)
     BRIDGE_X = 9.0  # Bridge X coordinate
-    CROSSING_SPEED = 2.0  # Crossing speed (m/s)
+    CROSSING_SPEED = 1.0  # Crossing speed (m/s)
     # Target position coordinate list (x, y, orientation.w)
     GOALS = [
-        (6.0, 0.0, 1.0),
-        (10.0, 0.0, 1.0),
-        (14.0, 0.0, 1.0),
-        (18.0, 0.0, 1.0)
+        (0.0, -18.0, 1.0), # (0:5,-22:-2)
+        (0.0, -14.0, 1.0),
+        (0.0, -10.0, 1.0),
+        (0.0, -6.0, 1.0)
     ]
 
     # Best viewing distance
@@ -105,7 +105,7 @@ class Config:
 
         'width_bridge': 70,
         'height_bridge': 100,
-        'MIN_POINTS_BRIDGE': 50,  # Minimum point count
+        'MIN_POINTS_BRIDGE': 20,  # Minimum point count
         'MAX_POINTS_BRIDGE': 300,  # Maximum point count
         'MIN_SAMPLES_BRIDGE': 10,  # Minimum sample size
         'EPS_BRIDGE': 6,  # DBSCAN eps parameter, larger eps creates fewer, larger clusters

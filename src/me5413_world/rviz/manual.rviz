@@ -6,7 +6,13 @@ Panels:
       Expanded:
         - /Global Options1
         - /Status1
+        - /MarkerArray2
+        - /MarkerArray3
+        - /MarkerArray4
+        - /MarkerArray5
+        - /MarkerArray6
         - /MarkerArray7
+        - /MarkerArray8
       Splitter Ratio: 0.5117647051811218
     Tree Height: 777
   - Class: rviz/Selection
@@ -355,7 +361,7 @@ Visualization Manager:
       Marker Topic: /explore/frontiers
       Name: MarkerArray
       Namespaces:
-        frontiers: true
+        {}
       Queue Size: 100
       Value: true
     - Class: rviz/MarkerArray
@@ -363,8 +369,7 @@ Visualization Manager:
       Marker Topic: /box_area
       Name: MarkerArray
       Namespaces:
-        explore_area: true
-        river_fill: true
+        {}
       Queue Size: 100
       Value: true
     - Class: rviz/MarkerArray
@@ -372,7 +377,10 @@ Visualization Manager:
       Marker Topic: /box_view_positions
       Name: MarkerArray
       Namespaces:
-        {}
+        box_visualization: true
+        view_lines: true
+        view_position: true
+        view_text: true
       Queue Size: 100
       Value: true
     - Class: rviz/MarkerArray
@@ -380,7 +388,7 @@ Visualization Manager:
       Marker Topic: /detected_bounding_boxes
       Name: MarkerArray
       Namespaces:
-        bounding_boxes: true
+        {}
       Queue Size: 100
       Value: true
     - Class: rviz/MarkerArray
@@ -395,6 +403,17 @@ Visualization Manager:
     - Class: rviz/MarkerArray
       Enabled: true
       Marker Topic: /box_view_positions
+      Name: MarkerArray
+      Namespaces:
+        box_visualization: true
+        view_lines: true
+        view_position: true
+        view_text: true
+      Queue Size: 100
+      Value: true
+    - Class: rviz/MarkerArray
+      Enabled: true
+      Marker Topic: /detected_bridges
       Name: MarkerArray
       Namespaces:
         {}
@@ -444,9 +463,9 @@ Visualization Manager:
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 1.2697962522506714
+      Pitch: 1.0997964143753052
       Target Frame: base_link
-      Yaw: 3.751814842224121
+      Yaw: 4.3468146324157715
     Saved:
       - Class: rviz/ThirdPersonFollower
         Distance: 4
