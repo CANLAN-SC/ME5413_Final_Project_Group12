@@ -18,7 +18,7 @@ class Config:
         'DETECTED_BRIDGES': '/detected_bridges',
         'OCR_TRIGGER': '/ocr_trigger',
         'CMD_STOP': '/cmd_stop',
-        'OPEN_BRIDGE': '/open_bridge',
+        'OPEN_BRIDGE': '/cmd_open_bridge',
         
         # Navigation related topics
         'MOVE_BASE': 'move_base',
