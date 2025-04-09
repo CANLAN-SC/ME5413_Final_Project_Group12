@@ -6,6 +6,7 @@ from sensor_msgs.msg import Image
 from std_msgs.msg import Bool, Int32
 from cv_bridge import CvBridge
 import numpy as np
+from PIL import Image
 
 class PostBridgeOCRNode:
     def __init__(self):
@@ -63,20 +64,27 @@ class PostBridgeOCRNode:
             rospy.logerr("CvBridge error: %s", e)
             return
 
-        # 图像预处理：转灰度、二值化，提取图像中心区域作为ROI（可根据实际情况调整）
+        # 1. Convert to grayscale
         gray = cv2.cvtColor(cv_image, cv2.COLOR_BGR2GRAY)
-        thresh = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
-                                       cv2.THRESH_BINARY_INV, 11, 2)
-        h, w = thresh.shape
-        roi = thresh[int(0.21*h):int(0.79*h), int(0.34*w):int(0.66*w)]
-        # 显示ROI便于调试（可选）
-        cv2.imshow("Post-bridge OCR ROI", roi)
-        cv2.waitKey(1)
 
-        # 使用Tesseract OCR识别数字
-        # 参数 --psm 10 表示识别单个字符，同时仅允许识别数字0~9
+        # Crop the region of interest (ROI) from the thresholded image
+        h, w = gray.shape
+        roi = gray[int(0.21*h):int(0.79*h), int(0.25*w):int(0.75*w)]
+        # 缩小图像（例如缩小为原来的 50%）
+        scale_percent = 50  # 缩小比例（你可以根据需要调整）
+        width = int(roi.shape[1] * scale_percent / 100)
+        height = int(roi.shape[0] * scale_percent / 100)
+        dim = (width, height)
+        resized_roi = cv2.resize(roi, dim, interpolation=cv2.INTER_AREA)
+        #roi = thresh[int(0.15*h):int(0.80*h), int(0.25*w):int(0.75*w)]
+        
+        # 使用 PIL.Image 显示 ROI
+        #Image.fromarray(roi).show()
+        
+        # 使用Tesseract OCR进行识别：
+        # --psm 7表示识别单个字符，设置白名单仅限数字0～9
         custom_config = r'--psm 7 -c tessedit_char_whitelist=0123456789'
-        ocr_text = pytesseract.image_to_string(roi, config=custom_config)
+        ocr_text = pytesseract.image_to_string(resized_roi, config=custom_config)
         ocr_text = ocr_text.strip()
 
         if ocr_text and ocr_text.isdigit():
