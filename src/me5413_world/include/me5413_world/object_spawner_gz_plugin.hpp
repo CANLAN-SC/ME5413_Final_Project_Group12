@@ -57,6 +57,13 @@ class ObjectSpawner : public WorldPlugin
 
   bool bridge_open_called_;
   double bridge_position_;
+
+  // 👇 加上这三个
+  bool obstacle_hidden_ = false;  // 标记是否桥处于“开启中”
+  gazebo::common::Time disappear_time_;  // 记录每次开启桥的仿真时间
+  event::ConnectionPtr update_connection_;  // 注册 OnUpdate 的连接句柄
+  gazebo::physics::WorldPtr world_;
+
   
   void timerCallback(const ros::TimerEvent&);
   void spawnRandomBridge();
@@ -68,6 +75,7 @@ class ObjectSpawner : public WorldPlugin
   void deleteBoxes();
   void respawnCmdCallback(const std_msgs::Int16::ConstPtr& respawn_msg);
   void openBridgeCallback(const std_msgs::Bool::ConstPtr& open_bridge_msg);
+  void OnUpdate();  // ← 添加这一行！
 };
 
 // Register this plugin with the simulator

@@ -1,3 +1,0 @@
-<launch>
-    <node name= "box_detection" pkg="box_detection" type="box_detection.py" output="screen" />
-</launch>

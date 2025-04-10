@@ -39,7 +39,7 @@
 
 1. 确保已安装所需依赖：
    ```bash
-   sudo apt-get install ros-$ROS_DISTRO-smach ros-$ROS_DISTRO-smach-ros python-smach
+   sudo apt-get install ros-$ROS_DISTRO-smach ros-$ROS_DISTRO-smach-ros 
    ```
 
 2. 在终端中启动节点：
