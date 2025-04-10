@@ -30,7 +30,7 @@ obstacles_layer:
   obstacle_range: 5
   raytrace_range: 5
   publish_voxel_map: false
-  observation_sources: scan lidar
+  observation_sources: scan # lidar
 
   scan:
     sensor_frame: tim551  
@@ -40,13 +40,12 @@ obstacles_layer:
     clearing: true
     
 
-  lidar:
-    sensor_frame: velodyne  
-    data_type: PointCloud
-    topic: /mid/points
-    marking: true
-    clearing: true
-    
+  # lidar:
+  #   sensor_frame: velodyne  
+  #   data_type: PointCloud2
+  #   topic: /mid/points
+  #   marking: true
+  #   clearing: false
 
 inflater_layer:
   enabled:              true #使能膨胀层

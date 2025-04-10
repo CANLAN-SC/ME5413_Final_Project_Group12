@@ -1,4 +1,5 @@
 <launch>
     <param name="image_topic" type="string" value="/front/image_raw" />
-    <node name= "ocr_node" pkg="ocr" type="before_bridge_ocr.py" output="screen" />
+    <node name= "before_ocr_node" pkg="ocr" type="before_bridge_ocr.py" output="screen" />
+    <node name= "after_ocr_node" pkg="ocr" type="after_bridge_ocr.py" output="screen" />
 </launch>
