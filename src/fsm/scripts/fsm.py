@@ -18,7 +18,8 @@ from config import Config
 from utils import (detect_object_from_costmap, 
                    visualize_area,  
                    navigate_to_goal,
-                   navigate_to_best_viewing_positions_and_visualize_and_ocr)
+                   navigate_to_best_viewing_positions_and_visualize_and_ocr,
+                   visualize_ocr_result)
 
 # =============================== Global Variables =========================
 latest_ocr_result = None  # Global variable to store the latest OCR result
@@ -100,6 +101,12 @@ class DetectBoxPoseNavigateAndOCR(smach.State):
             queue_size=10
         )
         
+        # Add ocr text visualization publisher
+        self.ocr_text_publisher = rospy.Publisher(
+            '/ocr_text', 
+            MarkerArray, 
+            queue_size=10
+        )
         self.detection_timeout = Config.TIMEOUTS['BOX_DETECTION']
         self.costmap = None  # Store latest costmap
         self.bridge_entrance = None
@@ -173,6 +180,8 @@ class DetectBoxPoseNavigateAndOCR(smach.State):
                                                                                  obstacle_threshold=Config.OBSTACLE_THRESHOLD)
                 # If boxes are detected, go and ocr
                 if costmap_boxes:
+                    self.bounding_box_publisher.publish(costmap_bounding_boxes)
+                    rospy.loginfo('Detected %d boxes', len(costmap_boxes))
                     for i, pose in enumerate(costmap_boxes):
                         try:                            
                             navigate_to_best_viewing_positions_and_visualize_and_ocr(Config.VIEWING_ANGLES, 
@@ -189,7 +198,18 @@ class DetectBoxPoseNavigateAndOCR(smach.State):
                                                                                      self.view_positions_publisher,)
                             # Check if OCR was successful
                             if latest_ocr_result is not None:
-                                rospy.loginfo('Successfully recognized digit for box %d: %d', i+1, latest_ocr_result)
+                                rospy.loginfo('Successfully recognized digit for box %d: %d', i+1, latest_ocr_result)  
+                                # Visualize OCR result
+                                visualize_ocr_result(
+                                    pose=pose,
+                                    result=latest_ocr_result,
+                                    publisher=self.ocr_text_publisher,
+                                    id=i,
+                                    scale=0.5,  # 调整文本大小
+                                    r=0.0,      # 设置文本颜色为绿色
+                                    g=1.0,
+                                    b=0.0
+                                )
                             
                         except Exception as e:
                             rospy.logerr('Error processing box: %s', str(e))
@@ -260,15 +280,15 @@ class DetectBridgeAndToEntrance(smach.State):
                
     def execute(self, userdata):
         # Get costmap from previous state
-        # self.costmap = userdata.costmap_in
+        self.costmap = userdata.costmap_in
 
         # Test: subscribe to costmap topic
-        self.costmap_subscriber = rospy.Subscriber(
-            Config.TOPICS['BOX_EXTRACTION'], 
-            OccupancyGrid, 
-            self.costmap_callback,
-            queue_size=50
-        )
+        # self.costmap_subscriber = rospy.Subscriber(
+        #     Config.TOPICS['BOX_EXTRACTION'], 
+        #     OccupancyGrid, 
+        #     self.costmap_callback,
+        #     queue_size=50
+        # )
         
         rospy.loginfo('Starting bridge detection task...')
         
@@ -524,14 +544,14 @@ def main():
         # Add Initialize state - the entry point of the state machine
         smach.StateMachine.add('INITIALIZE',
                             Initialize(),
-                            transitions={'initialized': 'DETECT_BOX_POSE',
+                            transitions={'initialized': 'EXPLORE_FRONTIER',
                                             'failed': 'mission_failed'})
         
         # Add Frontier Exploration state - robot explores the environment to build a map
-        # smach.StateMachine.add('EXPLORE_FRONTIER',
-        #                     ExploreFrontier(),
-        #                     transitions={'succeeded': 'DETECT_BOX_POSE',
-        #                                     'failed': 'mission_failed'})
+        smach.StateMachine.add('EXPLORE_FRONTIER',
+                            ExploreFrontier(),
+                            transitions={'succeeded': 'DETECT_BOX_POSE',
+                                            'failed': 'mission_failed'})
         
         # Add Box Detection state - detect boxes in the environment and try OCR
         smach.StateMachine.add('DETECT_BOX_POSE',

@@ -13,6 +13,7 @@ Panels:
         - /MarkerArray6
         - /MarkerArray7
         - /MarkerArray8
+        - /MarkerArray9
       Splitter Ratio: 0.5117647051811218
     Tree Height: 777
   - Class: rviz/Selection
@@ -361,7 +362,7 @@ Visualization Manager:
       Marker Topic: /explore/frontiers
       Name: MarkerArray
       Namespaces:
-        {}
+        frontiers: true
       Queue Size: 100
       Value: true
     - Class: rviz/MarkerArray
@@ -377,10 +378,7 @@ Visualization Manager:
       Marker Topic: /box_view_positions
       Name: MarkerArray
       Namespaces:
-        box_visualization: true
-        view_lines: true
-        view_position: true
-        view_text: true
+        {}
       Queue Size: 100
       Value: true
     - Class: rviz/MarkerArray
@@ -396,8 +394,7 @@ Visualization Manager:
       Marker Topic: /river_area
       Name: MarkerArray
       Namespaces:
-        explore_area: true
-        river_fill: true
+        {}
       Queue Size: 100
       Value: true
     - Class: rviz/MarkerArray
@@ -405,15 +402,20 @@ Visualization Manager:
       Marker Topic: /box_view_positions
       Name: MarkerArray
       Namespaces:
-        box_visualization: true
-        view_lines: true
-        view_position: true
-        view_text: true
+        {}
       Queue Size: 100
       Value: true
     - Class: rviz/MarkerArray
       Enabled: true
       Marker Topic: /detected_bridges
+      Name: MarkerArray
+      Namespaces:
+        {}
+      Queue Size: 100
+      Value: true
+    - Class: rviz/MarkerArray
+      Enabled: true
+      Marker Topic: /ocr_text
       Name: MarkerArray
       Namespaces:
         {}

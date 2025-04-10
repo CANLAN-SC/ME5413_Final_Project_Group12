@@ -521,6 +521,7 @@ def navigate_to_best_viewing_positions_and_visualize_and_ocr(viewing_angles, vie
         # Check if OCR result is available
         if latest_ocr_result is not None:
             rospy.loginfo(f'OCR result: {latest_ocr_result}')
+            break
         else:
             rospy.logwarn('OCR result not available, skipping...')
 
@@ -576,5 +577,48 @@ def navigate_to_goal(client, x, y, z=0.0, orientation_w=1.0, orientation_z=0.0, 
         rospy.logerr(f'导航到{description}出错: {str(e)}')
         return 'Error'
 
+def visualize_ocr_result(pose, result, publisher, id=0, scale=0.5, r=0.0, g=1.0, b=0.0):
+    """
+    在盒子上方可视化OCR识别结果
+    
+    参数:
+        pose: 盒子的位姿
+        result: OCR识别结果（数字）
+        publisher: 发布标记的发布器
+        id: 标记ID
+        scale: 文本大小
+        r, g, b: 文本颜色 (RGB)
+    """
+    from visualization_msgs.msg import Marker, MarkerArray
+    import rospy
+    
+    marker_array = MarkerArray()
+    
+    # 创建文本标记
+    text_marker = Marker()
+    text_marker.header.frame_id = "map"
+    text_marker.header.stamp = rospy.Time.now()
+    text_marker.ns = "ocr_results"
+    text_marker.id = id
+    text_marker.type = Marker.TEXT_VIEW_FACING
+    text_marker.action = Marker.ADD
+    
+    # 设置位置 (在盒子上方)
+    text_marker.pose = pose
+    text_marker.pose.position.z += 0.5  # 在盒子上方0.5m处显示
+    
+    # 设置文本内容和外观
+    text_marker.text = str(result)
+    text_marker.scale.z = scale  # 文本大小
+    text_marker.color.r = r
+    text_marker.color.g = g
+    text_marker.color.b = b
+    text_marker.color.a = 1.0  # 不透明
+    
+    # 设置标记持续时间
+    text_marker.lifetime = rospy.Duration(0)  # 0表示永久显示，直到被覆盖
+    
+    marker_array.markers.append(text_marker)
+    publisher.publish(marker_array)
 # example usage
 # from utils import detect_object_from_costmap, visualize_area, calculate_box_viewing_positions, navigate_to_best_viewing_positions

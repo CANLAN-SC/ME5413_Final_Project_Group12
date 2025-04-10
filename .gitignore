@@ -54,5 +54,3 @@ CATKIN_IGNORE
 
 # img
 costmap
-*.mp4
-*.ogv
