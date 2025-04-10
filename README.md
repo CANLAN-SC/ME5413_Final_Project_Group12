@@ -4,9 +4,7 @@
 
 This is the final project for the ME5413 course, implementing a robotic system with autonomous navigation, exploration, object detection, and OCR capabilities. The system is developed based on ROS (Robot Operating System) using the Jackal robot platform, capable of completing complex navigation tasks in a virtual environment.
 
-<video controls width="600">
-  <source src="media/final.mp4" type="mp4">
-</video>
+[Project Video](https://github.com/CANLAN-SC/ME5413_Final_Project_Group12/blob/zhihan/media/final.mp4)
 
 ## System Requirements
 
