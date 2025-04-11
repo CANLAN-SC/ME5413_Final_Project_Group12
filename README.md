@@ -399,6 +399,13 @@ The box generation process is as follows:
    std::vector<int> box_nums = {1, 2, 3, 4, 5}; // can contain any positive number, but make sure there's only one solution
    ```
 
+## Apendix
+### ROS Graph
+![ROS Graph](./media/rosgraph.png)
+
+### TF Tree
+![TF Tree](./media/frames.png)
+
 ## License
 
 Detailed in the LICENSE file
