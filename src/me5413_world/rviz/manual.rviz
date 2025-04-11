@@ -7,13 +7,12 @@ Panels:
         - /Global Options1
         - /Status1
         - /MarkerArray2
-        - /MarkerArray3
-        - /MarkerArray4
         - /MarkerArray5
         - /MarkerArray6
         - /MarkerArray7
-        - /MarkerArray8
-        - /MarkerArray9
+        - /PoseArray2
+        - /PoseArray3
+        - /PoseArray3/Status1
       Splitter Ratio: 0.5117647051811218
     Tree Height: 777
   - Class: rviz/Selection
@@ -370,7 +369,8 @@ Visualization Manager:
       Marker Topic: /box_area
       Name: MarkerArray
       Namespaces:
-        {}
+        explore_area: true
+        river_fill: true
       Queue Size: 100
       Value: true
     - Class: rviz/MarkerArray
@@ -378,15 +378,10 @@ Visualization Manager:
       Marker Topic: /box_view_positions
       Name: MarkerArray
       Namespaces:
-        {}
-      Queue Size: 100
-      Value: true
-    - Class: rviz/MarkerArray
-      Enabled: true
-      Marker Topic: /detected_bounding_boxes
-      Name: MarkerArray
-      Namespaces:
-        {}
+        box_visualization: true
+        view_lines: true
+        view_position: true
+        view_text: true
       Queue Size: 100
       Value: true
     - Class: rviz/MarkerArray
@@ -402,15 +397,10 @@ Visualization Manager:
       Marker Topic: /box_view_positions
       Name: MarkerArray
       Namespaces:
-        {}
-      Queue Size: 100
-      Value: true
-    - Class: rviz/MarkerArray
-      Enabled: true
-      Marker Topic: /detected_bridges
-      Name: MarkerArray
-      Namespaces:
-        {}
+        box_visualization: true
+        view_lines: true
+        view_position: true
+        view_text: true
       Queue Size: 100
       Value: true
     - Class: rviz/MarkerArray
@@ -420,6 +410,40 @@ Visualization Manager:
       Namespaces:
         {}
       Queue Size: 100
+      Value: true
+    - Alpha: 1
+      Arrow Length: 0.30000001192092896
+      Axes Length: 0.30000001192092896
+      Axes Radius: 0.009999999776482582
+      Class: rviz/PoseArray
+      Color: 255; 25; 0
+      Enabled: true
+      Head Length: 0.07000000029802322
+      Head Radius: 0.029999999329447746
+      Name: PoseArray
+      Queue Size: 10
+      Shaft Length: 0.23000000417232513
+      Shaft Radius: 0.009999999776482582
+      Shape: Arrow (Flat)
+      Topic: /detected_bounding_boxes
+      Unreliable: false
+      Value: true
+    - Alpha: 1
+      Arrow Length: 0.30000001192092896
+      Axes Length: 0.30000001192092896
+      Axes Radius: 0.009999999776482582
+      Class: rviz/PoseArray
+      Color: 255; 25; 0
+      Enabled: true
+      Head Length: 0.07000000029802322
+      Head Radius: 0.029999999329447746
+      Name: PoseArray
+      Queue Size: 10
+      Shaft Length: 0.23000000417232513
+      Shaft Radius: 0.009999999776482582
+      Shape: Arrow (Flat)
+      Topic: /detected_bridges
+      Unreliable: false
       Value: true
   Enabled: true
   Global Options:

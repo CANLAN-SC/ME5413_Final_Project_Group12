@@ -4,7 +4,7 @@ import rospy
 import smach
 import smach_ros
 from std_msgs.msg import Bool
-from geometry_msgs.msg import Twist, Pose
+from geometry_msgs.msg import Twist, Pose, PoseArray
 import actionlib
 from move_base_msgs.msg import MoveBaseAction, MoveBaseGoal
 from nav_msgs.msg import OccupancyGrid
@@ -90,7 +90,7 @@ class DetectBoxPoseNavigateAndOCR(smach.State):
         # Add bounding box publisher
         self.bounding_box_publisher = rospy.Publisher(
             Config.TOPICS['DETECTED_BOUNDING_BOXES'], 
-            MarkerArray, 
+            PoseArray, 
             queue_size=10
         )
 
@@ -166,7 +166,7 @@ class DetectBoxPoseNavigateAndOCR(smach.State):
                                area_publisher=self.box_area_publisher,
                                description='box_area')
                 rospy.loginfo('Using costmap for box detection...')
-                costmap_boxes, costmap_bounding_boxes = detect_object_from_costmap(self.costmap, eps=Config.CLUSTERING['EPS'],
+                costmap_boxes, costmap_bounding_boxes_list = detect_object_from_costmap(self.costmap, eps=Config.CLUSTERING['EPS'],
                                                                                  min_samples=Config.CLUSTERING['MIN_SAMPLES'],
                                                                                  min_cluster_size=Config.CLUSTERING['MIN_POINTS'],
                                                                                  max_cluster_size=Config.CLUSTERING['MAX_POINTS'],
@@ -180,7 +180,12 @@ class DetectBoxPoseNavigateAndOCR(smach.State):
                                                                                  obstacle_threshold=Config.OBSTACLE_THRESHOLD)
                 # If boxes are detected, go and ocr
                 if costmap_boxes:
-                    self.bounding_box_publisher.publish(costmap_bounding_boxes)
+                    boxes_pose_array = PoseArray()
+                    boxes_pose_array.header.frame_id = "map"
+                    boxes_pose_array.header.stamp = rospy.Time.now()
+                    boxes_pose_array.poses = costmap_boxes
+                    # Publish detected bounding boxes
+                    self.bounding_box_publisher.publish(boxes_pose_array)
                     rospy.loginfo('Detected %d boxes', len(costmap_boxes))
                     for i, pose in enumerate(costmap_boxes):
                         try:                            
@@ -255,7 +260,7 @@ class DetectBridgeAndToEntrance(smach.State):
         # Add bridge entrance publisher
         self.detected_bridge_publisher = rospy.Publisher(
             Config.TOPICS['DETECTED_BRIDGES'], 
-            MarkerArray, 
+            PoseArray, 
             queue_size=10
         )
         
@@ -329,9 +334,13 @@ class DetectBridgeAndToEntrance(smach.State):
                                                                                 obstacle_threshold=Config.OBSTACLE_THRESHOLD)
                 # If bridge positions are detected, publish them
                 if bridge_positions:
+                    # Publish bridge visualization
+                    bridge_pose_array = PoseArray()
+                    bridge_pose_array.header.frame_id = "map"
+                    bridge_pose_array.header.stamp = rospy.Time.now()
+                    bridge_pose_array.poses = bridge_positions
+                    self.detected_bridge_publisher.publish(bridge_pose_array)
                     if len(bridge_positions) == 1:
-                        # Publish bridge visualization
-                        self.detected_bridge_publisher.publish(bridge_bounding_boxes)
                         # Use the first detected bridge position
                         bridge_position = bridge_positions[0]
 
