@@ -91,7 +91,7 @@ roslaunch fsm final.launch
 
 打开一个新终端：
 ```bash
-cd ME5413_Final_Project_Group12
+cd ~/catkin_ws/src/ME5413_Final_Project_Group12
 source devel/setup.bash
 python src/fsm/scripts/fsm.py
 ```
