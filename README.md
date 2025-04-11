@@ -119,14 +119,57 @@ You should see:
 
 ## System Architecture
 
-The system consists of multiple modules, including:
-
-1. **Main Launch File**: final.launch
-2. **Sensor Processing**: fast_lio for laser SLAM
-3. **Object Detection**: box_detection for detecting boxes, ocr for character recognition
-4. **Path Planning**: move_base and TEB planner
-5. **Frontier Exploration**: frontier_explore for exploring unknown areas
-6. **Task Coordination**: fsm state machine for coordinating task execution
+```plaintext
+.
+├── docs -> Project documentation and references
+├── media -> Images, videos, gifs and other media files
+└── src
+    ├── frontier_explore -> Autonomous exploration module for unknown areas
+    │   ├── launch -> Launch files for frontier exploration
+    │   └── scripts -> Python scripts for frontier exploration algorithms
+    ├── fsm -> Finite State Machine for task coordination
+    │   ├── launch -> Launch files for the state machine
+    │   └── scripts -> Python scripts implementing the state machine logic
+    ├── interactive_tools -> Tools for user interaction with the robot
+    │   ├── include -> C++ header files for interactive tools
+    │   ├── launch -> Launch files for interactive tools
+    │   ├── resource -> Resource files for interactive tools
+    │   ├── rviz -> RViz configuration files
+    │   └── src -> C++ source files for interactive tools
+    ├── jackal_description -> Robot description files for the Jackal platform
+    │   ├── launch -> Launch files for the robot model
+    │   ├── meshes -> 3D model files for visualization
+    │   ├── scripts -> Helper scripts for the robot model
+    │   └── urdf -> URDF robot description files
+    ├── me5413_world -> Simulation world configuration
+    │   ├── config -> Configuration files for the simulation
+    │   ├── include -> C++ header files for world plugins
+    │   ├── launch -> Launch files for the simulation world
+    │   ├── media -> Media files specific to the simulation
+    │   ├── models -> 3D models for simulation elements
+    │   ├── rviz -> RViz configuration for world visualization
+    │   ├── src -> C++ source files for world plugins
+    │   └── worlds -> Gazebo world definition files
+    ├── navigation -> Navigation and path planning module
+    │   ├── launch -> Launch files for navigation
+    │   ├── params -> Parameter files for navigation algorithms
+    │   └── scripts -> Python scripts for navigation tasks
+    ├── ocr -> Optical Character Recognition module
+    │   ├── docs -> Documentation specific to OCR
+    │   ├── launch -> Launch files for OCR nodes
+    │   └── scripts -> Python scripts for OCR implementation
+    ├── slam -> Simultaneous Localization and Mapping module
+    │   ├── bagfiles -> ROS bag files for testing and replay
+    │   ├── config -> Configuration files for SLAM algorithms
+    │   ├── launch -> Launch files for SLAM
+    │   ├── maps -> Generated and reference maps
+    │   ├── rviz -> RViz configuration for map visualization
+    │   └── scripts -> Python scripts for map processing
+    └── third_party -> External dependencies and libraries
+        ├── FAST_LIO -> Fast LiDAR-Inertial Odometry implementation
+        ├── livox_ros_driver -> Driver for Livox LiDAR sensors
+        └── pcd_to_map -> Tool for converting point clouds to maps
+```
 
 ```mermaid
 graph LR
@@ -299,113 +342,9 @@ graph LR
     class mission_completed,mission_failed outcome;
 ```
 
-## Troubleshooting
-
-### How are the target box coordinates determined?
-
-These box coordinates are derived by examining the calculation formula in the code. The specific calculation process is as follows:
-
-#### Key calculations in source code
-
-In the `spawnRandomBoxes()` function, there is code like this (lines 197-202):
-
-```cpp
-const double spacing = (MAX_X_COORD - MIN_X_COORD)/(box_labels.size() + 1);
-for (int i = 0; i < box_labels.size(); i++)
-{
-  const ignition::math::Vector3d point = ignition::math::Vector3d(spacing*(i + 1) + MIN_X_COORD, 0.0, Z_COORD);
-  // subsequent code...
-}
-```
-
-#### Constants used
-
-The following constants are defined at the top of the file:
-- `NUM_BOX_TYPES = 4` (indicating 4 different types of boxes are used)
-- `MIN_X_COORD = 2.0`
-- `MAX_X_COORD = 22.0`
-- `Z_COORD = 3.0`
-
-#### Calculation process
-
-1. First, the number of box types is set to `NUM_BOX_TYPES = 4` (result of trimming the `box_labels` vector in lines 96-97)
-2. Calculate spacing: `spacing = (MAX_X_COORD - MIN_X_COORD)/(box_labels.size() + 1)`
-   - `spacing = (22.0 - 2.0)/(4 + 1) = 20.0/5 = 4.0`
-3. Then calculate the position for each box: `point_x = spacing*(i + 1) + MIN_X_COORD`
-
-For the 4 boxes, the positions are:
-- Box 1 (i=0): `4.0*(0+1) + 2.0 = 6.0`
-- Box 2 (i=1): `4.0*(1+1) + 2.0 = 10.0`
-- Box 3 (i=2): `4.0*(2+1) + 2.0 = 14.0`
-- Box 4 (i=3): `4.0*(3+1) + 2.0 = 18.0`
-
-All boxes have Y coordinate 0.0 and Z coordinate 3.0.
-Alternatively, coordinates can also be published in rviz using the mouse and listening to `/move_base_simple/goal`.
-
-### What is the pattern for generating random boxes?
-
-By analyzing the provided `object_spawner_gz_plugin.cpp` code, the pattern for generating random boxes in the exploration area can be determined.
-
-#### Box generation range and basic parameters
-
-The area for box generation is defined as a rectangular region with the range:
-- X coordinate range: 2.0 to 22.0 (MIN_X_COORD to MAX_X_COORD)
-- Y coordinate range: 11.0 to 19.0 (MIN_Y_COORD to MAX_Y_COORD)
-- Fixed Z coordinate: 3.0 (Z_COORD)
-
-#### Box types and quantities
-
-The code defines several key variables to control box generation:
-
-1. `NUM_BOX_TYPES = 4`: 4 different types of boxes will be generated
-2. `box_labels` array: contains possible box labels (numbers between 1 and 9)
-3. `box_nums` array: defines the quantity of each type of box
-
-#### Generation process
-
-The box generation process is as follows:
-
-1. **Randomization**:
-   - Random shuffling is applied to `box_labels` and `box_nums` 
-   - The first `NUM_BOX_TYPES` elements are selected as the final labels and quantities
-
-2. **Random box generation**:
-   - Random boxes are generated according to the quantities defined in the `box_nums` array
-   - Box positions are randomly selected within the defined range
-   - Generation ensures boxes don't collide (minimum distance of 1.2 units)
-
-#### Key rules
-
-1. **Collision avoidance**: When generating boxes at random positions, the distance to already generated boxes is checked to ensure a minimum separation of 1.2 units
-   ```cpp
-   for (const auto& pre_point : this->box_points)
-   {
-     const double dist = (point - pre_point).Length();
-     if (dist <= 1.2)
-     {
-       has_collision = true;
-       break;
-     }
-   }
-   ```
-
-2. **Label and quantity matching**:
-   - Each label type generates the corresponding number of boxes in the exploration area
-   - For example, if labels [1,3,5,7] and quantities [2,1,3,1] are selected, then 2 boxes with label 1, 1 box with label 3, etc. will be generated
-
-3. **Unique solution**:
-   ```cpp
-   // The comment in the code indicates that the quantity array should ensure only one solution
-   std::vector<int> box_nums = {1, 2, 3, 4, 5}; // can contain any positive number, but make sure there's only one solution
-   ```
-
-## Apendix
+## Appendix
 ### ROS Graph
 ![ROS Graph](./media/rosgraph.png)
 
 ### TF Tree
 ![TF Tree](./media/frames.png)
-
-## License
-
-Detailed in the LICENSE file
