@@ -12,41 +12,41 @@ class PostBridgeOCRNode:
     def __init__(self):
         rospy.init_node("post_bridge_ocr_node")
         self.bridge = CvBridge()
-        # 标记是否允许OCR（由3D LiDAR检测节点发出触发指令控制）
+        # Flag indicating if OCR is allowed (controlled by trigger command from 3D LiDAR detection node)
         self.ocr_enabled = False
-        # 标记任务是否已经完成
+        # Flag indicating if the task is completed
         self.task_complete = False
-        # 存储从预先阶段获得的目标数字（出现次数最少的数字）
+        # Store the target digit obtained from the preliminary stage (the least frequent digit)
         self.target_digit = None
         
-        # 加载预训练的MNIST模型
+        # Load the pre-trained MNIST model
         self.model = self.load_mnist_model()
         
-        # 订阅图像话题，参数化配置（默认为 /camera/image_raw）
+        # Subscribe to image topic, parameterized configuration (default is /camera/image_raw)
         image_topic = rospy.get_param("~image_topic", "/front/image_raw")
         self.image_sub = rospy.Subscriber(image_topic, Image, self.image_callback)
-        # 订阅OCR触发指令（由3D LiDAR检测节点发出）
+        # Subscribe to OCR trigger command (from 3D LiDAR detection node)
         self.ocr_trigger_sub = rospy.Subscriber("/ocr_trigger", Bool, self.ocr_trigger_callback)
-        # 订阅预先阶段发布的目标数字（最少出现的数字），类型为Int32
+        # Subscribe to the target digit (least frequent digit) published from preliminary stage, type Int32
         self.mode_digit_sub = rospy.Subscriber("/mode_digit", Int32, self.mode_digit_callback)
 
-        # 发布识别到的数字（调试用）
+        # Publish recognized digit (for debugging)
         self.recognized_digit_pub = rospy.Publisher("/recognized_digit_post", Int32, queue_size=1)
-        # 发布停靠指令，当识别数字与目标数字匹配时，发布True，表示机器人停止（任务完成）
+        # Publish docking command, publish True when recognized digit matches target digit, indicating robot to stop (task complete)
         self.cmd_stop_pub = rospy.Publisher("/cmd_stop", Bool, queue_size=1)
         
         rospy.loginfo("Post-bridge MNIST recognition node started, waiting for triggers and target digit.")
     
     def load_mnist_model(self):
         """
-        加载TensorFlow预训练的MNIST模型
+        Load pre-trained TensorFlow MNIST model
         """
         try:
-            # 加载MNIST数据集(仅用于获取模型)
+            # Load MNIST dataset (only for obtaining model)
             mnist = tf.keras.datasets.mnist
             (_, _), (_, _) = mnist.load_data()
             
-            # 创建一个简单的CNN模型
+            # Create a simple CNN model
             model = tf.keras.models.Sequential([
                 tf.keras.layers.Conv2D(32, (3, 3), activation='relu', input_shape=(28, 28, 1)),
                 tf.keras.layers.MaxPooling2D((2, 2)),
@@ -57,16 +57,16 @@ class PostBridgeOCRNode:
                 tf.keras.layers.Dense(10, activation='softmax')
             ])
             
-            # 编译模型
+            # Compile the model
             model.compile(optimizer='adam',
                          loss='sparse_categorical_crossentropy',
                          metrics=['accuracy'])
                          
-            # 这里应该加载已训练好的模型权重，如果有的话
+            # Here should load trained model weights if available
             # model.load_weights('mnist_model_weights.h5')
             
-            # 由于我们没有实际的权重文件，这里我们训练一个简单的模型
-            # 在实际应用中，应该使用预先训练好并保存的模型
+            # Since we don't have actual weight files, we train a simple model here
+            # In practical applications, a pre-trained and saved model should be used
             (train_images, train_labels), _ = mnist.load_data()
             train_images = train_images / 255.0
             train_images = train_images.reshape(-1, 28, 28, 1)
@@ -83,8 +83,8 @@ class PostBridgeOCRNode:
 
     def ocr_trigger_callback(self, msg):
         """
-        当收到3D LiDAR检测节点发出的OCR触发指令时，设置ocr_enabled为True，
-        后续在图像回调中处理OCR识别。
+        When receiving OCR trigger command from 3D LiDAR detection node, set ocr_enabled to True,
+        and process OCR recognition in subsequent image callbacks.
         """
         if not self.task_complete and msg.data:
             self.ocr_enabled = True
@@ -92,38 +92,38 @@ class PostBridgeOCRNode:
 
     def mode_digit_callback(self, msg):
         """
-        接收到预先阶段发布的目标数字（出现次数最少的数字），保存到self.target_digit。
+        Receive target digit (least frequent digit) published from preliminary stage, save to self.target_digit.
         """
         self.target_digit = msg.data
         rospy.loginfo("Received target digit: %d", self.target_digit)
 
     def preprocess_image_for_mnist(self, img):
         """
-        预处理图像以适应MNIST模型输入
+        Preprocess image to fit MNIST model input
         """
-        # 确保图像为灰度图
+        # Ensure image is grayscale
         if len(img.shape) > 2:
             img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
         
-        # 应用阈值处理，将图像二值化
+        # Apply threshold processing to binarize the image
         _, img = cv2.threshold(img, 127, 255, cv2.THRESH_BINARY_INV)
         
-        # 调整大小为MNIST格式 (28x28)
+        # Resize to MNIST format (28x28)
         img = cv2.resize(img, (28, 28))
         
-        # 归一化
+        # Normalize
         img = img / 255.0
         
-        # 扩展维度以匹配模型输入要求
-        img = np.expand_dims(img, axis=0)  # 添加batch维度
-        img = np.expand_dims(img, axis=-1)  # 添加通道维度
+        # Expand dimensions to match model input requirements
+        img = np.expand_dims(img, axis=0)  # Add batch dimension
+        img = np.expand_dims(img, axis=-1)  # Add channel dimension
         
         return img
 
     def image_callback(self, msg):
         """
-        图像回调函数。当ocr_enabled为True且任务未完成时，对当前图像进行数字识别，
-        并判断识别结果是否与目标数字一致。如果一致，则发布停靠指令，表示任务完成。
+        Image callback function. When ocr_enabled is True and task is not completed, perform digit recognition on the current image,
+        and determine if the recognition result matches the target digit. If they match, publish docking command, indicating task completion.
         """
         if not self.ocr_enabled or self.task_complete:
             return
@@ -134,19 +134,19 @@ class PostBridgeOCRNode:
             rospy.logerr("CvBridge error: %s", e)
             return
 
-        # 1. 转换为灰度图
+        # 1. Convert to grayscale
         gray = cv2.cvtColor(cv_image, cv2.COLOR_BGR2GRAY)
 
-        # 2. 裁剪感兴趣区域
+        # 2. Crop region of interest
         h, w = gray.shape
         # roi = gray[int(0.21*h):int(0.79*h), int(0.25*w):int(0.75*w)]
         # no roi
         roi = gray
         
-        # 3. 图像预处理
+        # 3. Image preprocessing
         processed_img = self.preprocess_image_for_mnist(roi)
         
-        # 4. 使用MNIST模型进行预测
+        # 4. Use MNIST model for prediction
         if self.model is not None:
             predictions = self.model.predict(processed_img, verbose=0)
             digit = np.argmax(predictions[0])
@@ -155,7 +155,7 @@ class PostBridgeOCRNode:
             rospy.loginfo(f"Post-bridge recognized digit: {digit} (confidence: {confidence:.2f})")
             self.recognized_digit_pub.publish(int(digit))
             
-            # 如果识别数字与目标数字一致，则发布停靠指令
+            # If recognized digit matches target digit, publish docking command
             if self.target_digit is not None and int(digit) == self.target_digit:
                 rospy.loginfo("Target digit matched! Stopping the robot.")
                 self.cmd_stop_pub.publish(True)
@@ -163,7 +163,7 @@ class PostBridgeOCRNode:
         else:
             rospy.logerr("MNIST model not available. Cannot perform recognition.")
 
-        # 重置OCR触发标志，等待下一次触发
+        # Reset OCR trigger flag, wait for next trigger
         self.ocr_enabled = False
 
 if __name__ == '__main__':

@@ -1,83 +1,83 @@
 # frontier_explore
-## 概述
-该软件包提供贪婪的基于前沿的探索功能。当节点运行时，机器人将贪婪地探索其环境，直到找不到更多前沿为止。移动命令将被发送到move_base。
+## Overview
+This package provides greedy frontier-based exploration functionality. When the node is running, the robot will greedily explore its environment until no more frontiers are found. Movement commands will be sent to move_base.
 
-与类似的软件包不同，explore_lite不创建自己的代价地图，这使其更易于配置且更高效（资源占用更少）。节点只需订阅nav_msgs/OccupancyGrid消息。机器人移动命令会被发送到move_base节点。
+Unlike similar packages, explore_lite does not create its own costmap, making it easier to configure and more efficient (using fewer resources). The node simply subscribes to nav_msgs/OccupancyGrid messages. Robot movement commands are sent to the move_base node.
 
-节点可以进行前沿过滤，并且可以在非膨胀地图上运行。目标黑名单功能允许处理机器人无法到达的地方。
+The node can perform frontier filtering and can operate on non-inflated maps. The goal blacklist feature allows handling places that the robot cannot reach.
 
-## 架构
-explore_lite使用move_base进行导航。您需要运行一个正确配置的move_base节点。
+## Architecture
+explore_lite uses move_base for navigation. You need to run a properly configured move_base node.
 
-![explore_lite架构图](http://wiki.ros.org/explore_lite?action=AttachFile&do=get&target=architecture.svg)
+![explore_lite architecture diagram](http://wiki.ros.org/explore_lite?action=AttachFile&do=get&target=architecture.svg)
 
-explore_lite订阅nav_msgs/OccupancyGrid和map_msgs/OccupancyGridUpdate消息来构建一个用于寻找前沿的地图。**您可以使用move_base发布的代价地图（例如`<move_base>/global_costmap/costmap`），也可以使用由测绘算法（SLAM）构建的`map`。**
+explore_lite subscribes to nav_msgs/OccupancyGrid and map_msgs/OccupancyGridUpdate messages to build a map for finding frontiers. **You can use the costmap published by move_base (e.g., `<move_base>/global_costmap/costmap`), or you can use the `map` built by a mapping algorithm (SLAM).**
 
-根据您的环境，您可能使用SLAM地图或move_base发布的代价地图会获得更好的结果。move_base代价地图的优势在于膨胀效果，这有助于处理一些非常小的无法探索的前沿。当您使用SLAM产生的原始地图时，应该将min_frontier_size参数设置为一个合理的数值，以处理小型前沿。有关两种设置的详细信息，请查看explore.launch和explore_costmap.launch启动文件。
+Depending on your environment, you might get better results using either the SLAM map or the costmap published by move_base. The advantage of the move_base costmap is the inflation effect, which helps handle very small unexplorable frontiers. When using the raw map produced by SLAM, you should set the min_frontier_size parameter to a reasonable value to handle small frontiers. For detailed information on both setups, check the explore.launch and explore_costmap.launch files.
 
-## 设置
-在开始尝试explore_lite之前，您需要有一个可用于导航的move_base。您应该能够通过rviz手动使用move_base进行导航。请参考navigation#Tutorials来为您的机器人设置move_base和导航栈的其余部分。
+## Setup
+Before trying explore_lite, you need to have a working move_base for navigation. You should be able to navigate manually using move_base through rviz. Refer to navigation#Tutorials to set up move_base and the rest of the navigation stack for your robot.
 
-您还应该能够使用move_base导航穿过地图中的未知空间。如果您将目标设置在地图的未知区域，规划和导航应该能够正常工作。对于大多数规划器，这应该默认就能工作，如果需要为navfn规划器设置此功能，请参考navfn#Parameters（但应该默认已启用）。explore_lite需要能够通过未知空间进行导航。
+You should also be able to navigate through unknown spaces in your map using move_base. If you set a goal in an unknown area of the map, planning and navigation should work. This should work by default for most planners, but if you need to set this feature for the navfn planner, see navfn#Parameters (though it should be enabled by default). explore_lite needs to be able to navigate through unknown space.
 
-如果您想使用move_base提供的代价地图，您需要通过设置track_unknown_space: true来启用未知空间跟踪。
+If you want to use the costmap provided by move_base, you need to enable unknown space tracking by setting track_unknown_space: true.
 
-如果您已正确配置move_base，就可以开始尝试explore_lite。提供的explore.launch在大多数情况下应该可以直接使用，但如往常一样，您可能需要根据您的设置调整话题名称和坐标系名称。
+If you have properly configured move_base, you can start trying explore_lite. The provided explore.launch should work out of the box in most cases, but as usual, you might need to adjust topic names and coordinate frame names according to your setup.
 
-## 调用的动作
+## Called Actions
 
 **move_base** (move_base_msgs/MoveBaseAction)  
-move_base actionlib API 用于发布导航目标。详情请参见 move_base#Action API。这要求 move_base 节点与 explore_lite 在同一命名空间中，如果不是这样，您可能需要重新映射该节点。
+The move_base actionlib API is used to publish navigation goals. See move_base#Action API for details. This requires the move_base node to be in the same namespace as explore_lite, or you may need to remap the node if this is not the case.
 
-## 订阅的话题
+## Subscribed Topics
 
 **costmap** (nav_msgs/OccupancyGrid)  
-用于探索规划的地图。可以是来自 move_base 的代价地图或由 SLAM 创建的地图（见上文）。占用栅格必须正确标记未知空间，地图构建算法通常默认会跟踪未知空间。如果您想使用 move_base 提供的代价地图，需要通过设置 track_unknown_space: true 来启用未知空间跟踪。
+Map used for exploration planning. Can be either a costmap from move_base or a map created by SLAM (see above). The occupancy grid must correctly mark unknown space, which map-building algorithms typically track by default. If you want to use the costmap provided by move_base, you need to enable unknown space tracking by setting track_unknown_space: true.
 
 **costmap_updates** (map_msgs/OccupancyGridUpdate)  
-代价地图的增量更新。如果地图源始终发布完整更新（即不提供此话题），则不必订阅。
+Incremental updates to the costmap. Not necessary to subscribe if the map source always publishes full updates (i.e., does not provide this topic).
 
-## 发布的话题
+## Published Topics
 
 **~frontiers** (visualization_msgs/MarkerArray)  
-探索算法考虑的前沿可视化。每个前沿都通过蓝色的前沿点和一个小球体来可视化，小球体表示前沿的成本（成本更高的前沿会有更小的球体）。
+Visualization of frontiers considered by the exploration algorithm. Each frontier is visualized by blue frontier points and a small sphere representing the cost of the frontier (higher cost frontiers have smaller spheres).
 
-## 参数
+## Parameters
 
-**~robot_base_frame** (string, 默认值: base_link)  
-机器人基座坐标系的名称。用于确定机器人在地图上的位置。必需参数。
+**~robot_base_frame** (string, default: base_link)  
+The name of the robot's base frame. Used to determine the robot's position on the map. Required parameter.
 
-**~costmap_topic** (string, 默认值: costmap)  
-指定源 nav_msgs/OccupancyGrid 的话题。必需参数。
+**~costmap_topic** (string, default: costmap)  
+Specifies the topic for the source nav_msgs/OccupancyGrid. Required parameter.
 
-**~costmap_updates_topic** (string, 默认值: costmap_updates)  
-指定源 map_msgs/OccupancyGridUpdate 的话题。如果地图源始终发布完整更新（即不提供此话题），则不必设置。
+**~costmap_updates_topic** (string, default: costmap_updates)  
+Specifies the topic for the source map_msgs/OccupancyGridUpdate. Not necessary to set if the map source always publishes full updates (i.e., does not provide this topic).
 
-**~visualize** (bool, 默认值: false)  
-指定是否发布前沿可视化信息。
+**~visualize** (bool, default: false)  
+Specifies whether to publish frontier visualization information.
 
-**~planner_frequency** (double, 默认值: 1.0)  
-计算新前沿和重新考虑目标的频率，单位为赫兹。
+**~planner_frequency** (double, default: 1.0)  
+The frequency at which to compute new frontiers and reconsider goals, in hertz.
 
-**~progress_timeout** (double, 默认值: 30.0)  
-时间，单位为秒。当机器人在 progress_timeout 时间内没有取得任何进展时，当前目标将被放弃。
+**~progress_timeout** (double, default: 30.0)  
+Time in seconds. The current goal will be abandoned when the robot has not made any progress for progress_timeout seconds.
 
-**~potential_scale** (double, 默认值: 1e-3)  
-用于前沿权重计算。这个乘法参数影响前沿权重的潜力组件（到前沿的距离）。
+**~potential_scale** (double, default: 1e-3)  
+Used for frontier weight calculation. This multiplication parameter affects the potential component (distance to frontier) of the frontier weight.
 
-**~orientation_scale** (double, 默认值: 0)  
-用于前沿权重计算。这个乘法参数影响前沿权重的方向组件。该参数目前不起作用，仅为向前兼容性而提供。
+**~orientation_scale** (double, default: 0)  
+Used for frontier weight calculation. This multiplication parameter affects the orientation component of the frontier weight. This parameter currently has no effect and is provided only for backward compatibility.
 
-**~gain_scale** (double, 默认值: 1.0)  
-用于前沿权重计算。这个乘法参数影响前沿权重的增益组件（前沿大小）。
+**~gain_scale** (double, default: 1.0)  
+Used for frontier weight calculation. This multiplication parameter affects the gain component (frontier size) of the frontier weight.
 
-**~transform_tolerance** (double, 默认值: 0.3)  
-变换机器人姿态时使用的容差。
+**~transform_tolerance** (double, default: 0.3)  
+The tolerance used when transforming the robot's pose.
 
-**~min_frontier_size** (double, 默认值: 0.5)  
-考虑前沿作为探索目标的最小前沿尺寸，单位为米。
+**~min_frontier_size** (double, default: 0.5)  
+Minimum frontier size to consider frontiers as exploration goals, in meters.
 
-## 所需的 tf 变换
+## Required tf Transforms
 
 **global_frame → robot_base_frame**  
-此变换通常由地图构建算法提供。这些坐标系通常称为 map 和 base_link。有关调整 robot_base_frame 名称，请参见相应参数。您不需要设置 global_frame。global_frame 的名称将自动从 costmap_topic 中获取。
+This transformation is typically provided by the map-building algorithm. These coordinate frames are commonly called map and base_link. See the corresponding parameter for adjusting the robot_base_frame name. You don't need to set global_frame. The name of the global_frame will be automatically obtained from the costmap_topic.

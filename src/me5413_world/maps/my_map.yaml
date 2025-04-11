@@ -1,7 +1,0 @@
-image: my_map_exploration.pgm
-resolution: 0.050000
-origin: [-1.958604, -23.496267, 0.000000]
-negate: 0
-occupied_thresh: 0.65
-free_thresh: 0.196
-

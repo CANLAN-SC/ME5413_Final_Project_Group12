@@ -25,7 +25,7 @@ class PreBridgeOCRNode:
         self.digit_pub = rospy.Publisher("/recognized_digit", Int32, queue_size=1)
         self.mode_digit_pub = rospy.Publisher("/mode_digit", Int32, queue_size=1)
 
-        # 设置Tesseract路径（根据实际安装位置调整）
+        # Set Tesseract path (adjust according to actual installation location)
         #pytesseract.pytesseract.tesseract_cmd = '/usr/bin/tesseract'
 
     def ocr_trigger_callback(self, msg):
@@ -50,17 +50,17 @@ class PreBridgeOCRNode:
             rospy.logerr("CvBridge Error: %s", e)
             return
 
-        # 增强的预处理流程
+        # Enhanced preprocessing workflow
         gray = cv2.cvtColor(cv_image, cv2.COLOR_BGR2GRAY)
         
-        # 改进的二值化方法
+        # Improved binarization method
         thresh = cv2.adaptiveThreshold(
             gray, 255,
             cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
             cv2.THRESH_BINARY_INV, 31, 6
         )
 
-        # 通过轮廓检测定位数字区域
+        # Locate digit regions through contour detection
         contours, _ = cv2.findContours(
             thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
         )
@@ -68,9 +68,9 @@ class PreBridgeOCRNode:
         roi = None
         for cnt in contours:
             x, y, w, h = cv2.boundingRect(cnt)
-            # 根据实际场景调整筛选条件
+            # Adjust filtering conditions based on actual scenario
             if h > 30 and w > 15 and 0.5 < w/h < 2.0:
-                # 扩展边界确保包含完整字符
+                # Extend boundaries to ensure complete character inclusion
                 pad = 5
                 x = max(0, x - pad)
                 y = max(0, y - pad)
@@ -84,7 +84,7 @@ class PreBridgeOCRNode:
             self.ocr_enabled = False
             return
 
-        # 优化图像尺寸
+        # Optimize image dimensions
         target_height = 64
         scale = target_height / roi.shape[0]
         resized_roi = cv2.resize(
@@ -93,7 +93,7 @@ class PreBridgeOCRNode:
             interpolation=cv2.INTER_CUBIC
         )
 
-        # 附加后处理
+        # Additional post-processing
         processed_roi = cv2.medianBlur(resized_roi, 3)
         processed_roi = cv2.copyMakeBorder(
             processed_roi,
@@ -102,10 +102,10 @@ class PreBridgeOCRNode:
             value=0
         )
 
-        # 调试保存图像
+        # Debug image saving
         #cv2.imwrite("/tmp/last_ocr_input.png", processed_roi)
 
-        # 优化OCR参数
+        # Optimize OCR parameters
         custom_config = r'--oem 3 --psm 7 -c tessedit_char_whitelist=0123456789'
         ocr_text = pytesseract.image_to_string(
             processed_roi, 

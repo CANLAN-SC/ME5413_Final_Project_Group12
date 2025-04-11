@@ -1,8 +1,0 @@
-<launch>
-  <!-- 启动状态机节点 -->
-  <node name="task_coordinator" pkg="fsm" type="fsm.py" output="screen">
-  </node>
-  
-  <!-- 状态机可视化 -->
-  <node name="smach_viewer" pkg="smach_viewer" type="smach_viewer.py" output="screen"/>
-</launch>

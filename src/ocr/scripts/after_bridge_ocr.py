@@ -15,18 +15,17 @@ class PostBridgeOCRNode:
         self.task_complete = False
         self.target_digit = None
 
-        # 参数配置
+        # Parameter configuration
         image_topic = rospy.get_param("~image_topic", "/front/image_raw")
         self.min_contour_area = rospy.get_param("~min_contour_area", 100)
         self.target_height = rospy.get_param("~target_height", 64)
 
-        # 订阅/发布设置
+        # Subscribe/publish setup
         self.image_sub = rospy.Subscriber(image_topic, Image, self.image_callback)
         self.ocr_trigger_sub = rospy.Subscriber("/ocr_trigger", Bool, self.ocr_trigger_callback)
         self.mode_digit_sub = rospy.Subscriber("/mode_digit", Int32, self.mode_digit_callback)
         self.recognized_digit_pub = rospy.Publisher("/recognized_digit_post", Int32, queue_size=1)
         self.cmd_stop_pub = rospy.Publisher("/cmd_stop", Bool, queue_size=1)
-
 
         rospy.loginfo("Post-bridge OCR node initialized")
 
@@ -44,13 +43,13 @@ class PostBridgeOCRNode:
             return
 
         try:
-            # 转换ROS图像消息为OpenCV格式
+            # Convert ROS image message to OpenCV format
             cv_image = self.bridge.imgmsg_to_cv2(msg, "bgr8")
         except Exception as e:
             rospy.logerr(f"CvBridge error: {str(e)}")
             return
 
-        # 增强的图像预处理流程
+        # Enhanced image preprocessing pipeline
         processed_roi = self.process_image(cv_image)
         
         if processed_roi is None:
@@ -58,7 +57,7 @@ class PostBridgeOCRNode:
             self.ocr_enabled = False
             return
 
-        # OCR识别
+        # OCR recognition
         digit = self.ocr_recognition(processed_roi)
         
         if digit is not None:
@@ -67,34 +66,34 @@ class PostBridgeOCRNode:
         self.ocr_enabled = False
 
     def process_image(self, cv_image):
-        """图像处理流水线，返回预处理后的ROI"""
-        # 转换为灰度图
+        """Image processing pipeline, returns preprocessed ROI"""
+        # Convert to grayscale
         gray = cv2.cvtColor(cv_image, cv2.COLOR_BGR2GRAY)
         
-        # 自适应阈值二值化
+        # Adaptive threshold binarization
         thresh = cv2.adaptiveThreshold(
             gray, 255,
             cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
             cv2.THRESH_BINARY_INV, 51, 6
         )
         
-        # 形态学操作增强特征
+        # Morphological operations to enhance features
         kernel = np.ones((3,3), np.uint8)
         processed = cv2.morphologyEx(thresh, cv2.MORPH_CLOSE, kernel, iterations=1)
         
-        # 查找轮廓
+        # Find contours
         contours, _ = cv2.findContours(
             processed, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
         )
         
-        # 筛选有效轮廓
+        # Filter valid contours
         valid_contours = []
         for cnt in contours:
             area = cv2.contourArea(cnt)
             x, y, w, h = cv2.boundingRect(cnt)
             aspect_ratio = w / float(h)
             
-            # 根据实际场景调整参数
+            # Adjust parameters based on actual scene
             if (area > self.min_contour_area and 
                 w > 15 and h > 30 and 
                 0.3 < aspect_ratio < 2.0):
@@ -104,11 +103,11 @@ class PostBridgeOCRNode:
             rospy.logdebug("No valid contours found")
             return None
         
-        # 选择最大轮廓
+        # Select the largest contour
         largest_cnt = max(valid_contours, key=cv2.contourArea)
         x, y, w, h = cv2.boundingRect(largest_cnt)
         
-        # 扩展边界
+        # Extend boundaries
         pad = 10
         x = max(0, x - pad)
         y = max(0, y - pad)
@@ -117,14 +116,14 @@ class PostBridgeOCRNode:
         
         roi = processed[y:y+h, x:x+w]
         
-        # 标准化处理
+        # Standardized processing
         scale = self.target_height / roi.shape[0]
         resized = cv2.resize(roi, 
             (int(roi.shape[1]*scale), self.target_height),
             interpolation=cv2.INTER_CUBIC
         )
         
-        # 后处理
+        # Post-processing
         filtered = cv2.medianBlur(resized, 3)
         bordered = cv2.copyMakeBorder(
             filtered, 20, 20, 20, 20,
@@ -134,7 +133,7 @@ class PostBridgeOCRNode:
         return bordered
 
     def ocr_recognition(self, processed_image):
-        """执行OCR识别"""
+        """Perform OCR recognition"""
         custom_config = r'--oem 3 --psm 7 -c tessedit_char_whitelist=0123456789'
         try:
             text = pytesseract.image_to_string(
@@ -150,7 +149,7 @@ class PostBridgeOCRNode:
         return None
 
     def handle_recognition_result(self, digit):
-        """处理识别结果"""
+        """Process recognition results"""
         rospy.loginfo(f"Recognized digit: {digit}")
         self.recognized_digit_pub.publish(digit)
         

@@ -1,74 +1,74 @@
-# 导航包 (Navigation Package)
-## 简介
-此导航包为ME5413自主移动机器人课程的期末项目提供了导航配置。该包基于ROS Navigation Stack，配置为使用TEB局部规划器(Timed Elastic Band)，针对Jackal差速机器人进行了优化。
+# Navigation Package
+## Introduction
+This navigation package provides navigation configuration for the ME5413 Autonomous Mobile Robots course final project. The package is based on the ROS Navigation Stack, configured to use the TEB (Timed Elastic Band) local planner, and optimized for the Jackal differential-drive robot.
 
-## 功能特点
-- 使用TEB局部规划器，支持高效路径规划和障碍物避让
-- 已完成参数调优，适用于项目环境中的Jackal机器人
-- 包含全局和局部代价地图配置
-- 提供了基于里程计和地图两种导航模式
-- 集成了多传感器数据，包括激光雷达和点云数据
+## Features
+- Uses TEB local planner for efficient path planning and obstacle avoidance
+- Parameters tuned for the Jackal robot in the project environment
+- Includes global and local costmap configurations
+- Provides both odometry-based and map-based navigation modes
+- Integrates multi-sensor data, including lidar and point cloud data
 
-## 依赖
-本包依赖以下ROS包：
-- `roscpp` 和 `rospy`
-- `std_msgs` 
-- `nav_msgs` 和 `geometry_msgs`
-- `move_base` 和 `tf2` 相关包
+## Dependencies
+This package depends on the following ROS packages:
+- `roscpp` and `rospy`
+- `std_msgs`
+- `nav_msgs` and `geometry_msgs`
+- `move_base` and `tf2` related packages
 - `jackal_navigation`
-- `teb_local_planner`（需单独安装）
+- `teb_local_planner` (needs to be installed separately)
 
-## 安装 teb_local_planner（如未安装）
+## Installing teb_local_planner (if not installed)
 ```bash
 sudo apt-get install ros-noetic-teb-local-planner
 ```
 
-## 文件结构
+## File Structure
 ```
 navigation/
-├── CMakeLists.txt          # 构建配置
-├── package.xml             # 包依赖定义
-├── README.md               # 本文档
+├── CMakeLists.txt          # Build configuration
+├── package.xml             # Package dependency definitions
+├── README.md               # This document
 ├── launch/
-│   └── move_base.launch    # 启动导航堆栈
+│   └── move_base.launch    # Launch navigation stack
 ├── params/
-│   ├── base_local_planner_params.yaml    # 基础路径规划器参数
-│   ├── costmap_common_params.yaml        # 通用代价地图参数
-│   ├── move_base_params.yaml             # move_base配置
-│   ├── teb_local_planner_params.yaml     # TEB局部规划器参数
-│   ├── map_nav_params/                   # 基于地图的导航参数
+│   ├── base_local_planner_params.yaml    # Base path planner parameters
+│   ├── costmap_common_params.yaml        # Common costmap parameters
+│   ├── move_base_params.yaml             # move_base configuration
+│   ├── teb_local_planner_params.yaml     # TEB local planner parameters
+│   ├── map_nav_params/                   # Map-based navigation parameters
 │   │   ├── global_costmap_params.yaml
 │   │   └── local_costmap_params.yaml
-│   └── odom_nav_params/                  # 基于里程计的导航参数
+│   └── odom_nav_params/                  # Odometry-based navigation parameters
 │       ├── global_costmap_params.yaml
 │       └── local_costmap_params.yaml
 └── scripts/
-    └── send_goal.py                      # 发送导航目标的脚本
+    └── send_goal.py                      # Script for sending navigation goals
 ```
 
-## 使用方法
+## Usage
 
-### 启动导航
-此包通常通过项目中的 me5413_world/navigation.launch 启动：
+### Starting Navigation
+This package is typically launched via me5413_world/navigation.launch in the project:
 
 ```bash
 roslaunch me5413_world navigation.launch
 ```
 
-或者直接启动move_base节点：
+Or directly launch the move_base node:
 
 ```bash
 roslaunch navigation move_base.launch
 ```
 
-### 发送导航目标
+### Sending Navigation Goals
 
-1. 使用RVIZ的2D Nav Goal工具
-2. 通过脚本发送：
+1. Using RVIZ's 2D Nav Goal tool
+2. Via script:
 ```bash
 rosrun navigation send_goal.py
 ```
-3. 发布到topic:
+3. Publishing to a topic:
 ```bash
 rostopic pub /move_base_simple/goal geometry_msgs/PoseStamped "header:
   seq: 0
@@ -88,50 +88,50 @@ pose:
     w: 1.0"
 ```
 
-## 参数调整
+## Parameter Adjustments
 
-### 传感器配置
-在 costmap_common_params.yaml 中，已配置了两种观测源：
-- `scan`: 2D激光扫描数据，来自话题 `/front/scan`
-- `lidar`: 3D点云数据，来自话题 `/mid/points`
+### Sensor Configuration
+In costmap_common_params.yaml, two observation sources are configured:
+- `scan`: 2D laser scan data from the topic `/front/scan`
+- `lidar`: 3D point cloud data from the topic `/mid/points`
 
-### TEB局部规划器关键参数
-在 teb_local_planner_params.yaml 中：
-- `max_vel_x`: 最大线速度，当前为5.0 m/s
-- `max_vel_theta`: 最大角速度，当前为2.0 rad/s
-- `min_obstacle_dist`: 避障最小距离，当前为0.25m
-- `inflation_dist`: 局部路径规划的障碍物膨胀距离，当前为0.3m
-- `weight_obstacle`: 障碍物权重，当前为50
+### Key TEB Local Planner Parameters
+In teb_local_planner_params.yaml:
+- `max_vel_x`: Maximum linear velocity, currently 5.0 m/s
+- `max_vel_theta`: Maximum angular velocity, currently 2.0 rad/s
+- `min_obstacle_dist`: Minimum obstacle avoidance distance, currently 0.25m
+- `inflation_dist`: Obstacle inflation distance for local path planning, currently 0.3m
+- `weight_obstacle`: Obstacle weight, currently 50
 
-### 代价地图参数
-调整 costmap_common_params.yaml 中的：
-- `obstacle_range`: 障碍物检测范围，当前为4m
-- `raytrace_range`: 射线追踪范围，当前为5m
-- `inflation_radius`: 障碍物膨胀半径，当前为0.30m
-- `footprint`: 机器人轮廓，当前设置为矩形 [[-0.21, -0.165], [-0.21, 0.165], [0.21, 0.165], [0.21, -0.165]]
-- `footprint_padding`: 轮廓额外填充，当前为0.1m
+### Costmap Parameters
+Adjust in costmap_common_params.yaml:
+- `obstacle_range`: Obstacle detection range, currently 4m
+- `raytrace_range`: Ray tracing range, currently 5m
+- `inflation_radius`: Obstacle inflation radius, currently 0.30m
+- `footprint`: Robot outline, currently set as a rectangle [[-0.21, -0.165], [-0.21, 0.165], [0.21, 0.165], [0.21, -0.165]]
+- `footprint_padding`: Additional footprint padding, currently 0.1m
 
-## 常见问题与解决方案
+## Common Issues and Solutions
 
-### 路径规划问题
-如果机器人无法规划路径或绕过障碍物，请尝试：
-- 增加 `inflation_radius` 值
-- 减小 `weight_obstacle` 值使规划器更激进
-- 确保`footprint`参数设置准确
+### Path Planning Issues
+If the robot cannot plan a path or navigate around obstacles, try:
+- Increasing the `inflation_radius` value
+- Decreasing the `weight_obstacle` value to make the planner more aggressive
+- Ensuring the `footprint` parameter is set accurately
 
-### 传感器融合问题
-如果传感器数据融合不正确：
-- 检查各传感器的坐标系设置是否正确
-- 确认 `sensor_frame` 参数与实际使用的传感器一致
-- 验证传感器话题是否正确发布数据 (`rostopic echo /topic_name`)
+### Sensor Fusion Issues
+If sensor data fusion is incorrect:
+- Check if coordinate frames for each sensor are set correctly
+- Confirm that the `sensor_frame` parameter matches the sensors actually used
+- Verify sensor topics are publishing data correctly (`rostopic echo /topic_name`)
 
-### TF变换问题
-如出现TF相关错误：
+### TF Transform Issues
+If you encounter TF-related errors:
 ```
 [ WARN] [/move_base]: Transform from map to base_link was unavailable
 ```
-请检查`tf_static`发布状态和机器人坐标系设置。
+Check the `tf_static` publishing status and robot coordinate frame settings.
 
 ---
 
-有问题或需改进建议请联系维护者：czhihan@u.nus.edu
+For questions or improvement suggestions, please contact the maintainer: czhihan@u.nus.edu

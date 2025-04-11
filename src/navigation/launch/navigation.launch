@@ -8,7 +8,7 @@
   <!-- <include file="$(find me5413_world)/launch/world.launch" /> -->
 
   <!-- Run the map server -->
-  <arg name="map_file" default="$(find me5413_world)/maps/my_map.yaml"/>
+  <arg name="map_file" default="$(find navigation)/maps/my_map.yaml"/>
   <node name="map_server" pkg="map_server" type="map_server" args="$(arg map_file)" />
   
   <!-- Launch the AMCL Localizer -->

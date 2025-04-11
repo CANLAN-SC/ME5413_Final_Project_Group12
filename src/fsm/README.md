@@ -1,93 +1,93 @@
-## 简介
+# Introduction
 
-这是一个使用 SMACH 状态机框架实现的 ROS 节点，用于协调机器人完成一系列任务的执行顺序。本状态机负责管理多个任务状态的转换，并提供可视化界面以便于调试和监控。
+This is a ROS node implemented using the SMACH state machine framework to coordinate the execution sequence of various robot tasks. This state machine is responsible for managing transitions between multiple task states and provides a visualization interface for debugging and monitoring.
 
-## 主要功能
+# Main Features
 
-- 使用状态机框架管理复杂任务流程
-- 实现机器人自主导航到指定位置
-- 触发 OCR 识别系统进行处理
-- 检测环境中的盒子并处理相关信息
-- 管理桥梁检测等特定任务
-- 提供任务执行状态可视化
+- Uses state machine framework to manage complex task workflows
+- Implements autonomous navigation to specified locations
+- Triggers OCR recognition system for processing
+- Detects boxes in the environment and processes related information
+- Manages specific tasks such as bridge detection
+- Provides task execution status visualization
 
-## 状态机架构
+# State Machine Architecture
 
-状态机包含以下几个主要状态：
+The state machine contains the following main states:
 
-1. **Initialize**：系统初始化状态
-   - 负责系统的初始设置
-   - 成功时转到 NavigateToGoal 状态
+1. **Initialize**: System initialization state
+   - Responsible for initial system setup
+   - Transitions to NavigateToGoal state on success
 
-2. **NavigateToGoal**：导航到目标点
-   - 使用 move_base action 接口导航到指定坐标
-   - 监控导航结果并相应地转换状态
+2. **NavigateToGoal**: Navigate to target point
+   - Uses move_base action interface to navigate to specified coordinates
+   - Monitors navigation results and transitions states accordingly
 
-3. **ExploreFrontier (TASK_ONE)**：执行任务一
-   - 发布触发消息到 `/ocr_trigger` 话题
-   - 订阅 `/detected_boxes` 话题接收盒子位置信息
-   - 处理并记录检测到的盒子
+3. **ExploreFrontier (TASK_ONE)**: Execute task one
+   - Publishes trigger messages to the `/ocr_trigger` topic
+   - Subscribes to the `/detected_boxes` topic to receive box position information
+   - Processes and records detected boxes
 
-4. **DetectBridge (TASK_TWO)**：执行任务二
-   - 处理与桥梁检测相关的任务
+4. **DetectBridge (TASK_TWO)**: Execute task two
+   - Handles tasks related to bridge detection
 
-5. **NavigateToGoal (TASK_THREE)**：执行任务三
-   - 执行任务完成后的导航任务
-   - 最终完成整个任务流程
+5. **NavigateToGoal (TASK_THREE)**: Execute task three
+   - Performs navigation tasks after task completion
+   - Completes the entire task workflow
 
-## 使用方法
+# Usage
 
-1. 确保已安装所需依赖：
+1. Ensure required dependencies are installed:
    ```bash
    sudo apt-get install ros-$ROS_DISTRO-smach ros-$ROS_DISTRO-smach-ros 
    ```
 
-2. 在终端中启动节点：
+2. Launch the node in terminal:
    ```bash
    cd ~/catkin_ws
    source devel/setup.bash
    python src/fsm/scripts/fsm.py
    ```
 
-3. 查看状态机执行情况：
+3. View state machine execution:
    ```bash
    rosrun smach_viewer smach_viewer.py
    ```
 
-## 与其他节点的交互
+# Interaction with Other Nodes
 
-- 与 `move_base` 节点通信以执行导航任务
-- 发布消息到 `/ocr_trigger` 话题触发OCR识别
-- 接收 `/detected_boxes` 话题获取检测到的盒子信息
+- Communicates with `move_base` node to perform navigation tasks
+- Publishes messages to `/ocr_trigger` topic to trigger OCR recognition
+- Receives detected box information from `/detected_boxes` topic
 
-## 状态转换逻辑
+# State Transition Logic
 
 ```
-Initialize ──成功──→ NavigateToGoal ──成功──→ TASK_ONE ──成功──→ TASK_TWO ──成功──→ TASK_THREE ──成功──→ mission_completed
+Initialize ──success──→ NavigateToGoal ──success──→ TASK_ONE ──success──→ TASK_TWO ──success──→ TASK_THREE ──success──→ mission_completed
      │                     │                  │                 │                 │
-     └───失败───┐   ┌───失败───┐      ┌───失败───┐     ┌───失败───┐     ┌───失败───┐
-                ▼   ▼           ▼      ▼           ▼     ▼           ▼     ▼
-              mission_failed
+     └───failure───┐   ┌───failure───┐      ┌───failure───┐     ┌───failure───┐     ┌───failure───┐
+                   ▼   ▼             ▼      ▼             ▼     ▼             ▼     ▼
+                 mission_failed
 ```
 
-## 数据流
-### box_position 在任务状态机中的传递流程分析
+# Data Flow
+## Analysis of box_position Transmission in Task State Machine
 
-`box_position` 在您的状态机中的传递是通过 SMACH 状态机框架的 `userdata` 机制实现的。让我梳理一下它的完整流程：
+The transmission of `box_position` in your state machine is implemented through the `userdata` mechanism of the SMACH state machine framework. Let me outline the complete process:
 
-#### 1. 数据的产生 - DetectBoxPose 状态
+### 1. Data Generation - DetectBoxPose State
 
-在 `DetectBoxPose` 状态中，通过以下步骤生成 `box_positions`：
+In the `DetectBoxPose` state, `box_positions` are generated through the following steps:
 
-1. 从代价地图提取障碍物信息
-2. 使用 DBSCAN 聚类算法对障碍物点进行聚类
-3. 计算每个聚类的中心点，将其转换为地图坐标系下的位置
-4. 根据配置的探索区域边界，过滤出位于探索区域内的盒子
-5. 将检测到的盒子位置包装成 `PoseArray` 消息
+1. Extract obstacle information from the cost map
+2. Use DBSCAN clustering algorithm to cluster obstacle points
+3. Calculate the center point of each cluster and convert to positions in map coordinate system
+4. Filter out boxes within the exploration area based on configured boundaries
+5. Package detected box positions as a `PoseArray` message
 
-关键代码：
+Key code:
 ```python
-# 将盒子姿态数组创建为PoseArray，便于传递
+# Create box pose array as PoseArray for transmission
 pose_array = PoseArray()
 pose_array.header.frame_id = "map"
 pose_array.header.stamp = rospy.Time.now()
@@ -95,29 +95,29 @@ pose_array.poses = [box.pose for box in costmap_boxes]
 userdata.box_positions_out = pose_array
 ```
 
-#### 2. 数据的输出定义
+### 2. Data Output Definition
 
-在 `DetectBoxPose` 状态的初始化中声明了输出键：
+Output keys are declared in the initialization of the `DetectBoxPose` state:
 ```python
 smach.State.__init__(self, outcomes=['succeeded', 'failed'], 
                      output_keys=['box_positions_out'])
 ```
 
-#### 3. 状态机中的数据映射
+### 3. Data Mapping in State Machine
 
-在顶层状态机中，通过 `remapping` 参数将状态之间的数据进行映射：
+In the top-level state machine, data is mapped between states using the `remapping` parameter:
 ```python
 smach.StateMachine.add('DETECT_BOX_POSE', DetectBoxPose(), 
-                       transitions={'succeeded':'NAVIGATE_TO_BOX_AND_OCR', 
-                                   'failed':'mission_failed'},
-                       remapping={'box_positions_out':'box_positions'})
+                      transitions={'succeeded':'NAVIGATE_TO_BOX_AND_OCR', 
+                                 'failed':'mission_failed'},
+                      remapping={'box_positions_out':'box_positions'})
 ```
 
-这里将 `DetectBoxPose` 状态的 `box_positions_out` 输出键映射到状态机的 `box_positions` 变量。
+This maps the `box_positions_out` output key from the `DetectBoxPose` state to the state machine's `box_positions` variable.
 
-#### 4. 数据的接收 - NavigateToBoxAndOCR 状态
+### 4. Data Reception - NavigateToBoxAndOCR State
 
-在 `NavigateToBoxAndOCR` 状态中，通过以下方式接收盒子位置数据：
+In the `NavigateToBoxAndOCR` state, box position data is received as follows:
 
 ```python
 smach.State.__init__(self, 
@@ -125,7 +125,7 @@ smach.State.__init__(self,
                    input_keys=['box_positions_in'])
 ```
 
-并在状态机中进行映射：
+And mapped in the state machine:
 ```python
 smach.StateMachine.add('NAVIGATE_TO_BOX_AND_OCR', NavigateToBoxAndOCR(),
                        transitions={'succeeded':'DETECT_BRIDGE', 
@@ -133,167 +133,167 @@ smach.StateMachine.add('NAVIGATE_TO_BOX_AND_OCR', NavigateToBoxAndOCR(),
                        remapping={'box_positions_in':'box_positions'})
 ```
 
-#### 5. 数据的使用 - NavigateToBoxAndOCR 状态中
+### 5. Data Usage - In NavigateToBoxAndOCR State
 
-在 `NavigateToBoxAndOCR::execute` 方法中，从 `userdata` 获取盒子位置：
+In the `NavigateToBoxAndOCR::execute` method, box positions are retrieved from `userdata`:
 ```python
-# 从userdata中获取盒子位置
+# Get box positions from userdata
 self.box_positions = userdata.box_positions_in
 ```
 
-然后使用这些位置数据进行导航和 OCR 处理：
+These position data are then used for navigation and OCR processing:
 ```python
-# 对每个盒子进行导航和OCR
+# Navigate to each box and perform OCR
 for i, pose in enumerate(self.box_positions.poses):
     try:
         self.navigate_to_best_viewing_positions(pose)
         
     except Exception as e:
-        rospy.logerr('处理盒子时发生错误: %s', str(e))
+        rospy.logerr('Error processing box: %s', str(e))
 ```
 
-#### 6. 数据类型和格式
+### 6. Data Type and Format
 
-- **数据类型**: `PoseArray` 消息类型，包含多个 `Pose` 对象
-- **结构**: 
-  - `header`: 标准消息头，包含时间戳和坐标系信息
-  - `poses[]`: 包含多个 `Pose` 对象的数组，每个对象包含位置(x,y,z)和方向(四元数)
+- **Data Type**: `PoseArray` message type, containing multiple `Pose` objects
+- **Structure**: 
+  - `header`: Standard message header with timestamp and coordinate system information
+  - `poses[]`: Array of multiple `Pose` objects, each containing position(x,y,z) and orientation(quaternion)
 
-#### 7. 数据在ROS系统中的流动
+### 7. Data Flow in ROS System
 
-除了在状态机内部传递外，`box_positions` 还通过 ROS 话题发布：
+Besides internal state machine transmission, `box_positions` is also published via ROS topics:
 
 ```python
 self.box_publisher.publish(pose_array)
 ```
 
-这样可以使其他节点也能订阅和使用盒子位置信息，比如可视化工具或外部监控节点。
+This allows other nodes to subscribe to and use box position information, such as visualization tools or external monitoring nodes.
 
-## 总结
+## Summary
 
-数据流程如下：
-1. `DetectBoxPose` 从代价地图检测盒子位置
-2. 将位置包装为 `PoseArray` 并存储到 `userdata.box_positions_out`
-3. 通过状态机的 `remapping` 机制，数据被映射到状态机共享变量 `box_positions`
-4. `NavigateToBoxAndOCR` 从 `userdata.box_positions_in` 获取数据
-5. 使用这些位置导航到每个盒子并执行 OCR 处理
-6. 同时，数据通过 ROS 话题发布，方便系统中其他组件使用
+The data flow is as follows:
+1. `DetectBoxPose` detects box positions from cost map
+2. Positions are packaged as `PoseArray` and stored in `userdata.box_positions_out`
+3. Through the state machine's `remapping` mechanism, data is mapped to the shared variable `box_positions`
+4. `NavigateToBoxAndOCR` retrieves data from `userdata.box_positions_in`
+5. Uses these positions to navigate to each box and perform OCR processing
+6. Simultaneously, data is published via ROS topics for use by other components in the system
 
-这种设计使各个状态能够共享数据，同时保持了状态之间的松耦合性。
+This design allows different states to share data while maintaining loose coupling between states.
 
-## 注意事项
+# Notes
 
-- 代码中有注释掉的启动 launch 文件的功能，如需启用请取消相关注释
-- 导航目标点坐标在 `NavigateToExplorationArea` 类中硬编码设置，可根据实际需求修改
-- 状态机的可视化服务运行在 `/TASK_COORDINATOR` 命名空间下
+- Code contains commented-out functionality for launching launch files, uncomment relevant sections if needed
+- Navigation goal coordinates are hardcoded in the `NavigateToExplorationArea` class and can be modified according to actual requirements
+- State machine visualization service runs in the `/TASK_COORDINATOR` namespace
 
-## 扩展与修改
+# Extension and Modification
 
-如需添加新的任务状态，请按以下步骤进行：
-1. 创建新的状态类，继承 `smach.State`
-2. 实现 `execute()` 方法处理任务逻辑
-3. 在 `main()` 函数中使用 `smach.StateMachine.add()` 添加到状态机
-4. 更新相关状态的转换关系
+To add new task states, follow these steps:
+1. Create a new state class inheriting from `smach.State`
+2. Implement the `execute()` method to handle task logic
+3. Use `smach.StateMachine.add()` to add it to the state machine in the `main()` function
+4. Update transition relationships for relevant states
 
-要了解更多关于SMACH状态机的信息，请访问 [ROS SMACH 教程](http://wiki.ros.org/smach/Tutorials)
+For more information about SMACH state machines, visit [ROS SMACH Tutorials](http://wiki.ros.org/smach/Tutorials)
 
-## 疑难杂症
-### `/move_base/global_costmap/costmap` 和 `/move_base/global_costmap/costmap_updates` 的来源是什么
+# Troubleshooting
+## What are the sources of `/move_base/global_costmap/costmap` and `/move_base/global_costmap/costmap_updates`?
 
-这两个话题都是ROS导航栈(navigation stack)中的核心组件，特别是`move_base`节点中的`global_costmap`功能生成的：
+Both topics are core components of the ROS navigation stack, specifically generated by the `global_costmap` functionality in the `move_base` node:
 
-#### `/move_base/global_costmap/costmap`
+### `/move_base/global_costmap/costmap`
 
-**来源**：这个话题由`move_base`节点内部的`global_costmap`对象创建和发布。
+**Source**: This topic is created and published by the `global_costmap` object within the `move_base` node.
 
-**内容**：完整的全局代价地图，是SLAM系统提供的地图与各种代价层(cost layers)叠加后的结果。
+**Content**: Complete global costmap, which is the result of the map provided by the SLAM system overlaid with various cost layers.
 
-**数据流**：
-1. SLAM系统(如gmapping、hector_slam、cartographer或您使用的FAST-LIO)生成基础地图，通常发布在`/map`话题上
-2. `move_base`订阅这个地图，将其作为`global_costmap`的静态层(static layer)
-3. `move_base`加入其他层(如障碍层、膨胀层等)，得到最终的全局代价地图
-4. 这个完整的地图被发布到`/move_base/global_costmap/costmap`
+**Data flow**:
+1. SLAM system (like gmapping, hector_slam, cartographer, or FAST-LIO that you're using) generates the base map, typically published on the `/map` topic
+2. `move_base` subscribes to this map and uses it as the static layer for the `global_costmap`
+3. `move_base` adds other layers (such as obstacle layer, inflation layer, etc.) to get the final global costmap
+4. This complete map is published to `/move_base/global_costmap/costmap`
 
-#### `/move_base/global_costmap/costmap_updates`
+### `/move_base/global_costmap/costmap_updates`
 
-**来源**：同样由`move_base`节点的`global_costmap`对象创建和发布。
+**Source**: Also created and published by the `global_costmap` object in the `move_base` node.
 
-**内容**：只包含了最近发生变化的代价地图部分，是一种增量更新机制。
+**Content**: Contains only the recently changed parts of the costmap, an incremental update mechanism.
 
-**数据流**：
-1. 当传感器数据导致代价地图变化时，`move_base`计算出变化的部分
-2. 这些变化被打包成一个小型OccupancyGrid消息，只包含修改过的区域
-3. 这个增量更新被发布到`/move_base/global_costmap/costmap_updates`
+**Data flow**:
+1. When sensor data causes changes in the costmap, `move_base` calculates the changed areas
+2. These changes are packaged as a small OccupancyGrid message, containing only the modified areas
+3. This incremental update is published to `/move_base/global_costmap/costmap_updates`
 
-### 触发器有哪些
+## What are the triggers?
 
-#### 发布的触发消息
+### Published Trigger Messages
 
 1. **`/box_detection_trigger`**
-   - 类型：`std_msgs/Bool`
-   - 发布者：`DetectBoxPose`状态
-   - 作用：触发外部盒子检测节点开始检测场景中的盒子
-   - 数据：`True`表示开始检测
+   - Type: `std_msgs/Bool`
+   - Publisher: `DetectBoxPose` state
+   - Purpose: Triggers external box detection node to start detecting boxes in the scene
+   - Data: `True` indicates start of detection
 
 2. **`/ocr_trigger`**
-   - 类型：`std_msgs/Bool`
-   - 发布者：`NavigateToBoxAndOCR`和`NavigateToGoalAndOCR`状态
-   - 作用：触发OCR节点开始识别图像中的文字
-   - 数据：`True`表示开始OCR识别
-   - 命令行测试：`rostopic pub /ocr_trigger std_msgs/Bool "data: true" -1`
+   - Type: `std_msgs/Bool`
+   - Publisher: `NavigateToBoxAndOCR` and `NavigateToGoalAndOCR` states
+   - Purpose: Triggers OCR node to start recognizing text in images
+   - Data: `True` indicates start of OCR recognition
+   - Command line test: `rostopic pub /ocr_trigger std_msgs/Bool "data: true" -1`
 
 3. **`/bridge_detection_trigger`**
-   - 类型：`std_msgs/Bool`
-   - 发布者：`DetectBridge`状态
-   - 作用：触发桥梁检测节点开始检测场景中的桥梁
-   - 数据：`True`表示开始桥梁检测
+   - Type: `std_msgs/Bool`
+   - Publisher: `DetectBridge` state
+   - Purpose: Triggers bridge detection node to start detecting bridges in the scene
+   - Data: `True` indicates start of bridge detection
 
 4. **`/open_bridge`**
-   - 类型：`std_msgs/Bool`
-   - 发布者：`OpenBridgeAndNavigate`状态
-   - 作用：触发桥梁控制节点打开桥梁
-   - 数据：`True`表示打开桥梁
+   - Type: `std_msgs/Bool`
+   - Publisher: `OpenBridgeAndNavigate` state
+   - Purpose: Triggers bridge control node to open the bridge
+   - Data: `True` indicates open the bridge
 
-5. **`/move_base/global_costmap/costmap`**和**`/move_base/global_costmap/costmap_updates`**
-   - 类型：`nav_msgs/OccupancyGrid`
-   - 发布者：`ExploreFrontier`状态
-   - 作用：发布探索区域的代价地图数据，用于导航规划
+5. **`/move_base/global_costmap/costmap`** and **`/move_base/global_costmap/costmap_updates`**
+   - Type: `nav_msgs/OccupancyGrid`
+   - Publisher: `ExploreFrontier` state
+   - Purpose: Publishes cost map data of exploration area for navigation planning
 
-#### 订阅的消息
+### Subscribed Messages
 
 1. **`/detected_boxes`**
-   - 类型：`geometry_msgs/PoseArray`
-   - 订阅者：`DetectBoxPose`状态
-   - 作用：接收盒子检测节点发现的盒子位置信息
-   - 回调：`box_callback`，将检测到的盒子位置存储在列表中
+   - Type: `geometry_msgs/PoseArray`
+   - Subscriber: `DetectBoxPose` state
+   - Purpose: Receives box location information discovered by box detection node
+   - Callback: `box_callback`, stores detected box positions in a list
 
 2. **`/detected_bridges`**
-   - 类型：`geometry_msgs/PoseStamped`
-   - 订阅者：`DetectBridge`状态
-   - 作用：接收桥梁检测节点发现的桥梁入口位置信息
-   - 回调：`bridge_callback`，将检测到的桥梁位置记录下来
+   - Type: `geometry_msgs/PoseStamped`
+   - Subscriber: `DetectBridge` state
+   - Purpose: Receives bridge entrance location information discovered by bridge detection node
+   - Callback: `bridge_callback`, records detected bridge positions
 
 3. **`/cmd_stop`**
-   - 类型：`std_msgs/Bool`
-   - 订阅者：`NavigateToGoalAndOCR`状态
-   - 作用：接收OCR节点发送的停止信号，表示已找到目标盒子
-   - 回调：`cmd_stop_callback`，如果收到`True`，则标记任务完成并停止导航
+   - Type: `std_msgs/Bool`
+   - Subscriber: `NavigateToGoalAndOCR` state
+   - Purpose: Receives stop signal sent by OCR node, indicating the target box has been found
+   - Callback: `cmd_stop_callback`, if `True` is received, marks the task as complete and stops navigation
 
-#### 触发流程
+### Trigger Process
 
-1. 初始化 → 导航到探索区域
-2. 执行前沿探索，发布地图数据
-3. 触发盒子检测，接收盒子位置
-4. 导航到每个盒子并触发OCR识别
-5. 触发桥梁检测，接收桥梁位置
-6. 导航到桥梁入口
-7. 发送开桥指令并导航过桥
-8. 导航到目标区域并触发OCR，直到收到停止信号
+1. Initialize → Navigate to exploration area
+2. Perform frontier exploration, publish map data
+3. Trigger box detection, receive box positions
+4. Navigate to each box and trigger OCR recognition
+5. Trigger bridge detection, receive bridge positions
+6. Navigate to bridge entrance
+7. Send bridge opening command and navigate across the bridge
+8. Navigate to target area and trigger OCR until stop signal is received
 
-### 最新进展
-已知盒子位置+导航
+## Latest Progress
+Known box positions + navigation
 ```bash
-[INFO] [1743674765.743773, 512.718000]: 等待接收盒子位置数据...
-[INFO] [1743674767.528165, 513.218000]: 导航到9个盒子并启动OCR...
-[INFO] [1743674767.529933, 513.220000]: [1/9] 导航到盒子位置: x=15.37, y=-16.05
+[INFO] [1743674765.743773, 512.718000]: Waiting to receive box position data...
+[INFO] [1743674767.528165, 513.218000]: Navigating to 9 boxes and starting OCR...
+[INFO] [1743674767.529933, 513.220000]: [1/9] Navigating to box location: x=15.37, y=-16.05
 ```
