@@ -19,7 +19,7 @@ in the third terminal:
 # roslaunch pcd_to_map pcd_to_map.launch
 ```
 
-# Save the map as `my_map` .You can see the map in the `\ME5413_Final_Project_Group12\src\pcd_to_map\map"` folder
+# Save the map as `my_map` .You can see the map in the ""my_map"` folder
 ```bash
 # rosrun map_server map_saver -f my_map
 ```
