@@ -11,7 +11,7 @@
 
 ## Project Introduction
 
-This is the final project for the ME5413 course, implementing a robotic system with autonomous navigation, exploration, object detection, and OCR capabilities. The system is developed based on ROS (Robot Operating System) using the Jackal robot platform, capable of completing complex navigation tasks in a virtual environment.
+This project presents the development of an autonomous mobile robotic system for the Jackal platform to perform complex navigation and task execution in a simulated Gazebo environment. The robot is required to map the environment, avoid obstacles, explore the randomly placed boxes, detect the number on the box, cross a dynamically generated bridge, unlock a timed blockade, and dock in front of the least frequently occurring box. We implemented a SLAM-based mapping module evaluated against ground truth, a sampling-based 2D localization module, a navigation module with global and local planner, a region-limited frontier exploration strategy, a real-time perception module and a general decision-making framework for robust task coordination. The integrated system demonstrates reliable performance and adaptability in dynamic scenarios.
 
 ## Demo
 ![project demo](./media/final.gif)
