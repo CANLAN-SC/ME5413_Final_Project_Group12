@@ -9,7 +9,7 @@ TebLocalPlannerROS:
   max_vel_theta: 0.8
   acc_lim_x: 1.0
   acc_lim_theta: 0.8
-  min_turning_radius: 0.0  # Jackal是差速驱动，可以原地转
+  min_turning_radius: 0.0  # Jackal is a differential drive robot, so this is 0.0
 
   # Robot footprint/collision model
   footprint_model:
@@ -58,7 +58,7 @@ TebLocalPlannerROS:
   exact_arc_length: false
   feasibility_check_no_poses: 5
 
-  # Homotopy Class Planning (多通道轨迹搜索，可不开启)
+  # Homotopy Class Planning
   enable_homotopy_class_planning: false
 
   # Recovery

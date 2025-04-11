@@ -10,27 +10,12 @@ meter_scoring: true
 footprint: [[-0.21, -0.165], [-0.21, 0.165], [0.21, 0.165], [0.21, -0.165]]
 footprint_padding: 0.1
 
-
-# obstacles_layer:
-#   observation_sources: scan
-#   scan: {
-#     sensor_frame: front_laser, 
-#     data_type: LaserScan, 
-#     topic: front/scan, 
-#     marking: true, 
-#     clearing: true, 
-#     min_obstacle_height: -2.0, 
-#     max_obstacle_height: 2.0, 
-#     obstacle_range: 2.5, 
-#     raytrace_range: 3.0}
-
 obstacles_layer:
-
-  enabled:              true #使能障碍层
+  enabled: true # Enable obstacles layer
   obstacle_range: 5
   raytrace_range: 5
   publish_voxel_map: false
-  observation_sources: scan # lidar
+  observation_sources: scan
 
   scan:
     sensor_frame: tim551  
@@ -38,21 +23,13 @@ obstacles_layer:
     topic: /front/scan
     marking: true
     clearing: true
-    
-
-  # lidar:
-  #   sensor_frame: velodyne  
-  #   data_type: PointCloud2
-  #   topic: /mid/points
-  #   marking: true
-  #   clearing: false
 
 inflater_layer:
-  enabled:              true #使能膨胀层
-  cost_scaling_factor:  5  # exponential rate at which the obstacle cost drops off 障碍成本下降的指数速度(default: 10)
-  inflation_radius:     0.3  # 机器人膨胀半径，比如设置为0.3,意味着规划的路径距离0.3米以上，这个参数理论上越大越安全
-  #但是会导致无法穿过狭窄的地方0.15
+  enabled: true # Enable inflation layer
+  cost_scaling_factor: 5  # exponential rate at which the obstacle cost drops off (default: 10)
+  inflation_radius: 0.3  # robot inflation radius, means planning path will keep this distance from obstacles
+                        # theoretically larger value is safer, but may prevent passing through narrow spaces
 
 static_layer:
-  enabled:              true
-  map_topic:            "/map"
+  enabled: true
+  map_topic: "/map"
