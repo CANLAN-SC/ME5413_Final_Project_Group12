@@ -60,7 +60,7 @@ pip install pytesseract scikit-learn
 sudo apt-get install ros-$ROS_DISTRO-smach ros-$ROS_DISTRO-smach-ros ros-$ROS_DISTRO-explore-lite ros-$ROS_DISTRO-teleop-twist-keyboard ros-$ROS_DISTRO-gmapping ros-$ROS_DISTRO-move-base ros-noetic-teb-local-planner ros-noetic-navigation
 ```
 
-4. 构建工作空间：
+4. 编译工作空间：
 ```bash
 cd ~/catkin_ws
 catkin_make
