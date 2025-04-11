@@ -1,5 +1,14 @@
 # ME5413 Final Project Group12
 
+## Contributors
+
+- [**Cao Zhihan**](https://github.com/dragonundertheworld) - *Project Coordination, State Machine Design and Object Detection* 
+- [**Ni Haozhan**](https://github.com/nihaozhan) - *Frontier Exploration* 
+- [**Sun Cheng**](https://github.com/CANLAN-SC) - *OCR Implementation*
+- [**Wei Yangcheng**](https://github.com/Wei819cn) - *Navigation Implementation* 
+- [**Wu Rui**](https://github.com/Avory1258) - *SLAM and Map Building* 
+- [**Huang Xinchen**](https://github.com/koallaaa) - *SLAM and Map Building* 
+
 ## Project Introduction
 
 This is the final project for the ME5413 course, implementing a robotic system with autonomous navigation, exploration, object detection, and OCR capabilities. The system is developed based on ROS (Robot Operating System) using the Jackal robot platform, capable of completing complex navigation tasks in a virtual environment.
@@ -9,9 +18,9 @@ This is the final project for the ME5413 course, implementing a robotic system w
 
 ## System Requirements
 
-- Ubuntu 18.04/20.04
-- ROS Melodic/Noetic
-- Python 2.7/3.x
+- Ubuntu 20.04
+- ROS Noetic
+- Python 2.7/3.8
 - Library Dependencies:
   - OpenCV
   - pytesseract
@@ -389,10 +398,6 @@ The box generation process is as follows:
    // The comment in the code indicates that the quantity array should ensure only one solution
    std::vector<int> box_nums = {1, 2, 3, 4, 5}; // can contain any positive number, but make sure there's only one solution
    ```
-
-## Contributors
-
-- Group 12 members
 
 ## License
 
