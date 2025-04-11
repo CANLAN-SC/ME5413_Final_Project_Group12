@@ -55,7 +55,7 @@ git clone https://github.com/CANLAN-SC/ME5413_Final_Project_Group12.git
 3. Install dependencies:
 ```bash
 sudo apt-get update
-sudo apt-get install python-opencv python-numpy tesseract-ocr libtesseract-dev
+sudo apt-get install python3-opencv python-numpy tesseract-ocr libtesseract-dev
 pip install pytesseract scikit-learn
 sudo apt-get install ros-$ROS_DISTRO-smach ros-$ROS_DISTRO-smach-ros ros-$ROS_DISTRO-explore-lite ros-$ROS_DISTRO-teleop-twist-keyboard ros-$ROS_DISTRO-gmapping ros-$ROS_DISTRO-move-base ros-noetic-teb-local-planner ros-noetic-navigation
 ```
